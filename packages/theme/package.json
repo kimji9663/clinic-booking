@@ -1,0 +1,13 @@
+{
+  "name": "@clinic/theme",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "고객사(병원)별 브랜드 토큰과 MUI createTheme 팩토리",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
