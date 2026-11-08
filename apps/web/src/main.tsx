@@ -7,13 +7,14 @@ import { App } from './App';
  * 실제 API 가 생기면 import.meta.env.DEV 조건으로 감싸면 된다.
  */
 async function enableMocking() {
-  const { worker, startInPageMocking } = await import('./mocks/browser');
+  const { worker, startEventStreamMocking, startInPageMocking } = await import('./mocks/browser');
   try {
     await worker.start({
       onUnhandledFrame: 'bypass',
       quiet: import.meta.env.PROD,
       serviceWorker: { url: `${import.meta.env.BASE_URL}mockServiceWorker.js` },
     });
+    await startEventStreamMocking();
   } catch (error) {
     // 서비스 워커 등록이 막힌 환경(앱 내장 브라우저, 일부 시크릿 모드 등) → 페이지 내 가로채기로 대체
     console.warn('서비스 워커를 쓸 수 없어 페이지 내 목업 API 로 전환합니다.', error);

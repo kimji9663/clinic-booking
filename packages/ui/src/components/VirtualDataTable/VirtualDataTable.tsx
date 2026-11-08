@@ -45,6 +45,10 @@ export interface VirtualDataTableProps<T> {
   overscan?: number;
   /** 무한 스크롤: 더 불러올 데이터가 있는지 */
   hasMore?: boolean;
+  /**
+   * 데이터를 불러오는 중. true → false 로 바뀔 때 아직 끝 근처라면 onLoadMore 를 다시 호출하므로,
+   * 다음 페이지뿐 아니라 목록 전체를 다시 불러오는 중일 때도 true 로 주면 요청이 누락되지 않는다.
+   */
   loadingMore?: boolean;
   onLoadMore?: () => void;
   /** 끝에서 몇 행 전에 다음 페이지를 요청할지 */

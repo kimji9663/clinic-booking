@@ -44,4 +44,13 @@ describe('request', () => {
     server.use(http.get('/api/items', () => HttpResponse.error()));
     await expect(request(ListSchema, '/api/items')).rejects.toThrow('서버에 연결할 수 없습니다.');
   });
+
+  it('호출한 쪽이 취소한 요청은 네트워크 오류로 바꾸지 않고 AbortError 그대로 전달한다', async () => {
+    server.use(http.get('/api/items', () => new Promise<never>(() => {})));
+    const controller = new AbortController();
+    const pending = request(ListSchema, '/api/items', { signal: controller.signal });
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(pending).rejects.not.toBeInstanceOf(ApiError);
+  });
 });

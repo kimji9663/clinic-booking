@@ -6,7 +6,12 @@ import {
   isAllowedTransition,
   type Appointment,
 } from '../domain/appointment';
-import { PATIENT_PAGE_SIZE, type PatientPage } from '../domain/patient';
+import {
+  PATIENT_PAGE_SIZE,
+  UpdatePatientMemoSchema,
+  type PatientDetail,
+  type PatientPage,
+} from '../domain/patient';
 import { db, doctors, nextId } from './db';
 
 const UpdateStatusSchema = z.object({ status: z.enum(appointmentStatuses) });
@@ -104,5 +109,28 @@ export const handlers = [
       total: all.length,
     };
     return HttpResponse.json(page);
+  }),
+
+  http.get<{ id: string }>('/api/patients/:id', async ({ params }) => {
+    await delay();
+    const patient = db.patient(params.id);
+    if (!patient) return error('환자를 찾을 수 없습니다.', 404);
+    const detail: PatientDetail = {
+      ...patient,
+      memo: db.memo(params.id),
+      appointments: db.patientAppointments(params.id),
+    };
+    return HttpResponse.json(detail);
+  }),
+
+  http.patch<{ id: string }>('/api/patients/:id/memo', async ({ params, request }) => {
+    await delay();
+    if (!db.patient(params.id)) return error('환자를 찾을 수 없습니다.', 404);
+    const parsed = UpdatePatientMemoSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return error(parsed.error.issues[0]?.message ?? '잘못된 메모입니다.', 400);
+    }
+    db.setMemo(params.id, parsed.data.memo);
+    return HttpResponse.json({ memo: parsed.data.memo });
   }),
 ];

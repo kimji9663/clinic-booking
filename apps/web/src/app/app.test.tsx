@@ -123,13 +123,14 @@ describe('환자', () => {
     expect(screen.queryByRole('region', { name: '환자 150명' })).not.toBeInTheDocument();
 
     for (const loaded of [60, 90, 120, 150]) {
-      // 지금까지 불러온 목록의 맨 아래(불러오는 중 행이 보이는 위치)까지 스크롤
-      const previous = loaded - 30;
-      const bottom = (previous + 1) * 50 - 600;
-      act(() => scrollWindowTo(bottom));
-      await waitFor(() =>
-        expect(screen.getByRole('status')).toHaveTextContent(`전체 150건 중 ${loaded}건 표시`),
-      );
+      // 지금까지 불러온 목록의 끝("불러오는 중" 행)이 화면 맨 위에 오도록 스크롤
+      const bottom = (loaded - 30) * 50;
+      // 실제 사용자는 스크롤 이벤트를 계속 발생시킨다. 부하가 큰 환경에서 첫 이벤트가 데이터 요청과
+      // 엇갈려도 결과가 같도록, 기다리는 동안 스크롤 이벤트를 다시 보낸다.
+      await waitFor(() => {
+        act(() => scrollWindowTo(bottom));
+        expect(screen.getByRole('status')).toHaveTextContent(`전체 150건 중 ${loaded}건 표시`);
+      });
     }
     // 마지막 페이지 이후에는 "불러오는 중" 행이 없다
     expect(screen.queryByText('불러오는 중…')).not.toBeInTheDocument();

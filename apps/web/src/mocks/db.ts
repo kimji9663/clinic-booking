@@ -13,7 +13,8 @@ import {
   type VisitType,
 } from '../domain/appointment';
 import type { Doctor } from '../domain/doctor';
-import type { Patient } from '../domain/patient';
+import { ClinicEventSchema, type ClinicEvent } from '../domain/clinicEvent';
+import { patientIdOf, type Patient } from '../domain/patient';
 import { addDays, today } from '../utils/date';
 
 export const doctors: readonly Doctor[] = [
@@ -155,23 +156,40 @@ const seedRows: readonly SeedRow[] = [
 let appointments: Appointment[] = [];
 let sequence = 0;
 let seedDate = today();
+/** 환자 id → 메모 */
+let memos: Record<string, string> = {};
+/** 실시간 이벤트 기록 (최근 EVENT_LOG_SIZE 개). 재연결한 클라이언트에 놓친 이벤트를 다시 보낸다. */
+let events: ClinicEvent[] = [];
+let eventSequence = 0;
+const EVENT_LOG_SIZE = 50;
 
 export const DB_STORAGE_KEY = 'clinic-booking:mock-db';
 
 /** 저장 형식이나 시드가 바뀌면 version 을 올려 예전 데이터를 버린다 */
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const StoredDbSchema = z.object({
   version: z.literal(DB_VERSION),
   seedDate: z.string(),
   sequence: z.number().int().nonnegative(),
   appointments: z.array(AppointmentSchema),
+  memos: z.record(z.string(), z.string()),
+  events: z.array(ClinicEventSchema),
+  eventSequence: z.number().int().nonnegative(),
 });
 
 function persist(): void {
   try {
     window.localStorage.setItem(
       DB_STORAGE_KEY,
-      JSON.stringify({ version: DB_VERSION, seedDate, sequence, appointments }),
+      JSON.stringify({
+        version: DB_VERSION,
+        seedDate,
+        sequence,
+        appointments,
+        memos,
+        events,
+        eventSequence,
+      }),
     );
   } catch {
     // 저장소를 쓸 수 없으면(시크릿 모드 용량 제한 등) 메모리에서만 동작
@@ -185,7 +203,7 @@ function restore(baseDate: string): boolean {
     const parsed = StoredDbSchema.safeParse(JSON.parse(raw));
     // 형식이 다르거나(손상·구버전) 다른 날짜에 만든 데이터면 새로 시드
     if (!parsed.success || parsed.data.seedDate !== baseDate) return false;
-    ({ sequence, seedDate, appointments } = parsed.data);
+    ({ sequence, seedDate, appointments, memos, events, eventSequence } = parsed.data);
     return true;
   } catch {
     return false;
@@ -263,6 +281,11 @@ function generateHistory(baseDate: string): Appointment[] {
 export function resetDb(baseDate: string = today()): void {
   sequence = 0;
   seedDate = baseDate;
+  memos = {
+    [patientIdOf(featuredPeople[3]?.[1] ?? '')]: '페니실린 알레르기. 보호자(어머니) 동반 내원.',
+  };
+  events = [];
+  eventSequence = 0;
   appointments = [
     ...seedRows.map(([offset, time, person, doctorId, visitType, status, memo]) =>
       createAppointment(addDays(baseDate, offset), time, person, doctorId, visitType, status, memo),
@@ -310,25 +333,66 @@ export const db = {
       else byPhone.set(a.phone, [a]);
     }
     return [...byPhone.entries()]
-      .map(([phone, list]) => {
-        const sorted = [...list].sort((a, b) =>
-          `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`),
-        );
-        const visits = sorted.filter((a) => a.status === 'completed');
-        const upcoming = sorted.find(
-          (a) => a.date >= baseDate && (a.status === 'requested' || a.status === 'confirmed'),
-        );
-        return {
-          id: `p-${phone.replaceAll('-', '')}`,
-          name: sorted[0]?.patientName ?? '',
-          phone,
-          visitCount: visits.length,
-          lastVisit: visits.at(-1)?.date ?? null,
-          nextAppointment: upcoming ? `${upcoming.date} ${upcoming.time}` : null,
-        };
-      })
+      .map(([phone, list]) => summarize(phone, list, baseDate))
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   },
+
+  patient(id: string, baseDate: string = today()): Patient | undefined {
+    const list = appointments.filter((a) => patientIdOf(a.phone) === id);
+    const phone = list[0]?.phone;
+    return phone ? summarize(phone, list, baseDate) : undefined;
+  },
+
+  /** 환자의 전체 예약 (최근 일시가 먼저) */
+  patientAppointments(id: string): Appointment[] {
+    return appointments
+      .filter((a) => patientIdOf(a.phone) === id)
+      .sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
+  },
+
+  memo(id: string): string {
+    return memos[id] ?? '';
+  },
+  setMemo(id: string, memo: string): void {
+    memos = { ...memos, [id]: memo };
+    persist();
+  },
+
+  /** 이벤트 시뮬레이션에서 무작위 환자를 고를 때 사용 */
+  people(): readonly (readonly [name: string, phone: string])[] {
+    return people;
+  },
+
+  /** 이벤트를 기록하고 id 를 붙여 돌려준다 */
+  recordEvent(event: Omit<ClinicEvent, 'id'>): ClinicEvent {
+    eventSequence += 1;
+    const recorded = { ...event, id: eventSequence };
+    events = [...events, recorded].slice(-EVENT_LOG_SIZE);
+    persist();
+    return recorded;
+  },
+  /** afterId 이후의 이벤트 (재연결 시 놓친 이벤트 재전송) */
+  eventsAfter(afterId: number): ClinicEvent[] {
+    return events.filter((e) => e.id > afterId);
+  },
 };
+
+function summarize(phone: string, list: readonly Appointment[], baseDate: string): Patient {
+  const sorted = [...list].sort((a, b) =>
+    `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`),
+  );
+  const visits = sorted.filter((a) => a.status === 'completed');
+  const upcoming = sorted.find(
+    (a) => a.date >= baseDate && (a.status === 'requested' || a.status === 'confirmed'),
+  );
+  return {
+    id: patientIdOf(phone),
+    name: sorted[0]?.patientName ?? '',
+    phone,
+    visitCount: visits.length,
+    lastVisit: visits.at(-1)?.date ?? null,
+    nextAppointment: upcoming ? `${upcoming.date} ${upcoming.time}` : null,
+  };
+}
 
 loadDb();

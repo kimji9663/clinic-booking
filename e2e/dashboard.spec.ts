@@ -7,7 +7,17 @@ const pages = [
   { path: '/appointments', heading: '예약 관리' },
   { path: '/schedule', heading: '진료 일정' },
   { path: '/patients', heading: '환자' },
+  // 시드 대표 환자 이하준(010-3348-9021)의 프로필
+  { path: '/patients/p-01033489021', heading: '이*준 님' },
 ] as const;
+
+// 실시간 알림의 자동 이벤트(20~40초 간격)가 테스트 도중 데이터를 바꾸지 않도록 끈다.
+// 알림 테스트는 POST /api/dev/events 로 이벤트를 직접 발생시킨다.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('clinic-booking:event-simulation', 'off');
+  });
+});
 
 async function expectNoA11yViolations(page: Page) {
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
@@ -72,6 +82,65 @@ test.describe('환자 목록 (가상화 + 무한 스크롤)', () => {
     await page.keyboard.press('End');
     await expect(table.locator('[data-index="149"]')).toBeInViewport();
     expect(await table.locator('[data-index]').count()).toBeLessThan(60);
+  });
+});
+
+test.describe('환자 프로필', () => {
+  test('목록에서 프로필로 이동해 메모를 수정하면 새로고침 후에도 유지된다', async ({ page }) => {
+    await page.goto('/patients');
+    const link = page.getByRole('link', { name: /프로필$/ }).first();
+    const name = (await link.textContent()) ?? '';
+    await link.click();
+    await expect(page.getByRole('heading', { level: 1, name: `${name} 님` })).toBeVisible();
+
+    const memo = page.getByRole('region', { name: '메모' });
+    await memo.getByRole('button', { name: '메모 수정' }).click();
+    await memo.getByRole('textbox', { name: '메모' }).fill('E2E 메모: 오후 진료 선호');
+    await memo.getByRole('button', { name: '저장' }).click();
+    await expect(page.getByRole('status')).toContainText('메모를 저장했습니다.');
+
+    await page.reload();
+    await expect(page.getByRole('region', { name: '메모' })).toContainText(
+      'E2E 메모: 오후 진료 선호',
+    );
+  });
+});
+
+test.describe('실시간 알림 (SSE)', () => {
+  test('서버 이벤트를 받으면 토스트·배지로 알리고, 알림을 누르면 환자 프로필로 이동한다', async ({
+    page,
+    browserName,
+  }) => {
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1, name: '오늘의 예약' })).toBeVisible();
+
+    // 연결 상태 확인
+    const bell = page.getByRole('button', { name: /^알림/ });
+    await bell.click();
+    const panel = page.getByRole('dialog', { name: '알림' });
+    await expect(panel.getByText('실시간 연결됨')).toBeVisible();
+    await expect(panel.getByText('새 알림이 없습니다.')).toBeVisible();
+    if (browserName !== 'firefox') await expectNoA11yViolations(page);
+    await page.keyboard.press('Escape');
+
+    // 서버에서 이벤트 발생 (목업 전용 엔드포인트)
+    const event = await page.evaluate(async () => {
+      const response = await fetch('/api/dev/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'appointment.requested' }),
+      });
+      return (await response.json()) as { patientId: string };
+    });
+
+    await expect(page.getByRole('status')).toContainText('새 예약 요청');
+    await expect(page.getByRole('button', { name: '알림, 읽지 않음 1개' })).toBeVisible();
+
+    await page.getByRole('button', { name: '알림, 읽지 않음 1개' }).click();
+    await page.getByRole('dialog', { name: '알림' }).getByRole('link').first().click();
+    await expect(page).toHaveURL(new RegExp(`/patients/${event.patientId}$`));
+    await expect(page.getByRole('heading', { level: 2, name: '진료 이력' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '알림' })).toBeVisible();
   });
 });
 

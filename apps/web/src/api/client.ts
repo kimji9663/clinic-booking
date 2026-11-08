@@ -38,7 +38,10 @@ export async function request<S extends z.ZodType>(
       ...init,
       headers: { 'Content-Type': 'application/json', ...init?.headers },
     });
-  } catch {
+  } catch (error) {
+    // 호출한 쪽(TanStack Query 등)이 요청을 취소한 경우는 오류가 아니므로 그대로 전달한다.
+    // 감싸 버리면 Query 가 취소를 실패로 오해해 오류 상태가 된다.
+    if (init?.signal?.aborted) throw error;
     throw new ApiError('서버에 연결할 수 없습니다. 네트워크 상태를 확인해 주세요.', 0);
   }
 

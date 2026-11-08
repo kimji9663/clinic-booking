@@ -10,6 +10,7 @@ import { Suspense, useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { BrandSwitcher } from '../brand/BrandSwitcher';
 import { ColorModeToggle } from '../brand/ColorModeToggle';
+import { NotificationBell } from '../features/notifications/NotificationBell';
 
 const navigation: readonly Omit<NavItem, 'current'>[] = [
   { id: 'dashboard', label: '대시보드', href: '/', icon: <DashboardIcon /> },
@@ -57,6 +58,7 @@ export function RootLayout() {
       navItems={navItems}
       headerActions={
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <NotificationBell />
           <ColorModeToggle />
           <BrandSwitcher />
         </Stack>

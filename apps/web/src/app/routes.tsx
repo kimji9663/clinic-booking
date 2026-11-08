@@ -16,6 +16,9 @@ const SchedulePage = lazy(() =>
 const PatientsPage = lazy(() =>
   import('../pages/PatientsPage').then((m) => ({ default: m.PatientsPage })),
 );
+const PatientProfilePage = lazy(() =>
+  import('../pages/PatientProfilePage').then((m) => ({ default: m.PatientProfilePage })),
+);
 const NotFoundPage = lazy(() =>
   import('../pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 );
@@ -30,6 +33,7 @@ export const routes: RouteObject[] = [
       { path: 'appointments', element: <AppointmentsPage /> },
       { path: 'schedule', element: <SchedulePage /> },
       { path: 'patients', element: <PatientsPage /> },
+      { path: 'patients/:patientId', element: <PatientProfilePage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

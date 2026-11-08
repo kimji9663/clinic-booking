@@ -25,11 +25,11 @@ clinic-booking/
 ├─ apps/
 │  └─ web/     @clinic/web   — 병원 예약 관리 앱 (Vite)
 │     ├─ src/app/       라우트(코드 스플리팅), Provider, 레이아웃
-│     ├─ src/api/       fetch 래퍼(zod 검증) + TanStack Query 훅
+│     ├─ src/api/       fetch 래퍼(zod 검증) + TanStack Query 훅 + SSE 클라이언트
 │     ├─ src/domain/    예약·의사·환자 zod 스키마와 상태 전이 규칙
-│     ├─ src/features/  예약 등록 폼, 상태 변경 작업
+│     ├─ src/features/  예약 등록 폼, 상태 변경 작업, 실시간 알림
 │     ├─ src/pages/     대시보드 / 예약 관리 / 진료 일정 / 환자
-│     └─ src/mocks/     MSW 핸들러 + 목업 DB (localStorage 저장, 백엔드 없는 데모용)
+│     └─ src/mocks/     MSW 핸들러 + SSE 이벤트 서버 + 목업 DB (localStorage 저장, 백엔드 없는 데모용)
 ├─ .storybook/ 컴포넌트 문서 + 브랜드 전환 툴바 + a11y 검사
 └─ e2e/        Playwright 크로스 브라우저 + axe 접근성 테스트
 ```
@@ -76,6 +76,19 @@ npm run storybook      # http://localhost:6006
 - 모든 응답은 `request(schema, ...)`에서 zod로 검증, TanStack Query 로 캐시·로딩·오류 상태 관리
 - 예약 생성·상태 변경 후 관련 쿼리(예약, 환자)를 무효화해 화면 자동 갱신
 - 환자 150명은 `GET /api/patients?cursor=&limit=` 커서 페이지네이션 + `useInfiniteQuery` 로 30명씩 이어 받음
+- 환자 프로필(`/patients/:id`): 기본 정보·진료 이력(예정/지난)·메모. 메모 저장은 **낙관적 업데이트**(실패 시 롤백 + 작성 내용 보존), 프로필에서 이름·연락처가 채워진 예약 등록
+
+### 실시간 알림 (SSE)
+
+- 목업 서버가 `GET /api/events`(`text/event-stream`)로 **신규 예약 요청 / 내원 접수 / 예약 취소** 이벤트를 20~40초 간격으로 보냄
+- 클라이언트는 `EventSource` 대신 **fetch 스트림 기반 SSE 클라이언트**(`api/eventStream.ts`)를 직접 구현
+  - 표준 event stream 해석(여러 줄 data, CRLF, 주석, `retry`), 끊기면 지수 백오프 재연결
+  - 재연결 시 `Last-Event-ID` 헤더로 놓친 이벤트를 다시 받음 (서버는 최근 50건 보관)
+  - EventSource 와 달리 요청 헤더를 직접 정할 수 있고, MSW·Node 테스트에서 똑같이 동작
+- 이벤트를 받으면 예약·환자 쿼리를 무효화해 열린 화면이 바로 갱신되고, 토스트(`role="status"`)와 상단 알림 배지로 알림
+- 알림 버튼 이름에 읽지 않은 개수 포함("알림, 읽지 않음 2개"), 알림을 누르면 해당 환자 프로필로 이동, 목록은 localStorage 에 보관
+- SSE 스트림만은 서비스 워커가 아닌 **페이지 안에서** 가로챔: MSW 는 ReadableStream 전송을 지원하지 않는 브라우저(Safari 등)에서 응답 본문을 끝까지 모은 뒤 전달하므로 끝나지 않는 스트림이 멈추기 때문
+- 데모 조작: `POST /api/dev/events` (`{ "type": "appointment.requested" }`)로 즉시 발생, `localStorage['clinic-booking:event-simulation'] = 'off'` 로 자동 발생 끄기
 - 상태 전이 규칙(`승인 대기 → 예약 확정 → 내원 접수 → 진료 완료`, 취소 가능 상태)을 도메인 함수로 정의해 화면과 목업 서버가 공유
 - 필터(날짜·상태)는 URL 쿼리에 저장 → 새로고침·뒤로가기·링크 공유 시 유지
 
@@ -115,12 +128,12 @@ npm run storybook      # http://localhost:6006
 
 ## 테스트 현황
 
-| 종류     | 도구                     | 내용                                                                                                                          |
-| -------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| 단위     | Vitest                   | 명도 대비 보정, 테마(모드별), 마스킹, 날짜·전화번호 포맷                                                                      |
-| 컴포넌트 | Vitest + Testing Library | DataTable, VirtualDataTable(가상화 범위·무한 스크롤 호출), AppShell, ConfirmDialog, Toast, StatusBadge                        |
-| 통합     | Vitest + MSW             | 라우팅·포커스 이동, 브랜드/다크 모드 전환, 필터-URL 동기화, 예약 승인·취소, 예약 등록 폼(검증·자동 하이픈·중복 시간·409 처리) |
-| E2E      | Playwright + axe         | 5개 브라우저 환경, 예약 등록 흐름, 전체 페이지 접근성                                                                         |
+| 종류     | 도구                     | 내용                                                                                                                                                                                                         |
+| -------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 단위     | Vitest                   | 명도 대비 보정, 테마(모드별), 마스킹, 날짜·전화번호 포맷, SSE 파서(조각 경계·CRLF·retry)                                                                                                                     |
+| 컴포넌트 | Vitest + Testing Library | DataTable, VirtualDataTable(가상화 범위·무한 스크롤 호출), AppShell, ConfirmDialog, Toast, StatusBadge                                                                                                       |
+| 통합     | Vitest + MSW             | 라우팅·포커스 이동, 브랜드/다크 모드 전환, 필터-URL 동기화, 예약 승인·취소, 예약 등록 폼(검증·자동 하이픈·중복 시간·409 처리), 환자 프로필(메모 낙관적 업데이트·롤백), SSE 재연결·Last-Event-ID, 실시간 알림 |
+| E2E      | Playwright + axe         | 5개 브라우저 환경, 예약 등록·무한 스크롤·프로필 메모·실시간 알림 흐름, 전체 페이지·알림 패널 접근성                                                                                                          |
 
 ## 다음 단계
 
@@ -129,5 +142,7 @@ npm run storybook      # http://localhost:6006
 - [x] 예약 등록 폼 (react-hook-form + zod) / 확인 Dialog / Toast
 - [x] 다크 모드
 - [x] 환자 150명 대용량 목록: TanStack Virtual 가상화 + 무한 스크롤
+- [x] 환자 프로필 (진료 이력, 메모 낙관적 업데이트, 프로필에서 예약 등록)
+- [x] 실시간 알림 (SSE: 재연결·Last-Event-ID, 토스트·알림 배지)
 - [ ] 공수 비교 지표: 신규 고객사 추가 시 변경 파일·라인 수 기록
 - [ ] 배포 (Vercel/Netlify) + Storybook 배포

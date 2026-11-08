@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AppointmentSchema } from './appointment';
 
 export const PatientSchema = z.object({
   id: z.string(),
@@ -21,3 +22,24 @@ export const PatientPageSchema = z.object({
 export type PatientPage = z.infer<typeof PatientPageSchema>;
 
 export const PATIENT_PAGE_SIZE = 30;
+
+export const PATIENT_MEMO_MAX = 500;
+
+/** 환자 프로필: 집계 정보 + 메모 + 전체 예약 이력(최근순) */
+export const PatientDetailSchema = PatientSchema.extend({
+  memo: z.string(),
+  appointments: z.array(AppointmentSchema),
+});
+
+export type PatientDetail = z.infer<typeof PatientDetailSchema>;
+
+export const UpdatePatientMemoSchema = z.object({
+  memo: z.string().trim().max(PATIENT_MEMO_MAX, `메모는 ${PATIENT_MEMO_MAX}자 이내로 입력하세요.`),
+});
+
+export type UpdatePatientMemoInput = z.infer<typeof UpdatePatientMemoSchema>;
+
+/** 환자 id 는 연락처에서 만든다 (목업 데이터에는 별도 환자 테이블이 없음) */
+export function patientIdOf(phone: string): string {
+  return `p-${phone.replaceAll('-', '')}`;
+}

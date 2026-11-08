@@ -27,12 +27,17 @@ export interface AppointmentFormDialogProps {
   open: boolean;
   onClose: () => void;
   defaultDate?: string;
+  /** 환자 프로필에서 열 때 이름·연락처를 미리 채운다 */
+  defaultPatient?: Pick<CreateAppointmentInput, 'patientName' | 'phone'>;
 }
 
-function emptyForm(date: string): CreateAppointmentInput {
+function emptyForm(
+  date: string,
+  patient?: Pick<CreateAppointmentInput, 'patientName' | 'phone'>,
+): CreateAppointmentInput {
   return {
-    patientName: '',
-    phone: '',
+    patientName: patient?.patientName ?? '',
+    phone: patient?.phone ?? '',
     date,
     time: '',
     doctorId: '',
@@ -45,6 +50,7 @@ export function AppointmentFormDialog({
   open,
   onClose,
   defaultDate = today(),
+  defaultPatient,
 }: AppointmentFormDialogProps) {
   const toast = useToast();
   const visitTypeLabelId = useId();
@@ -53,13 +59,21 @@ export function AppointmentFormDialog({
 
   const { control, handleSubmit, reset, setError } = useForm<CreateAppointmentInput>({
     resolver: zodResolver(CreateAppointmentSchema),
-    defaultValues: emptyForm(defaultDate),
+    defaultValues: emptyForm(defaultDate, defaultPatient),
   });
 
-  // 열 때마다 빈 폼으로 초기화
+  // 열 때마다 초기화 (환자 프로필에서 열면 이름·연락처는 채운 상태)
+  const patientName = defaultPatient?.patientName;
+  const patientPhone = defaultPatient?.phone;
   useEffect(() => {
-    if (open) reset(emptyForm(defaultDate));
-  }, [open, defaultDate, reset]);
+    if (!open) return;
+    reset(
+      emptyForm(
+        defaultDate,
+        patientName && patientPhone ? { patientName, phone: patientPhone } : undefined,
+      ),
+    );
+  }, [open, defaultDate, patientName, patientPhone, reset]);
 
   // 선택한 날짜·담당의의 이미 찬 시간은 선택할 수 없게 표시
   const [date, doctorId] = useWatch({ control, name: ['date', 'doctorId'] });

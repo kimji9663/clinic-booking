@@ -6,7 +6,13 @@ import {
   type CreateAppointmentInput,
 } from '../domain/appointment';
 import { DoctorSchema } from '../domain/doctor';
-import { PATIENT_PAGE_SIZE, PatientPageSchema } from '../domain/patient';
+import {
+  PATIENT_PAGE_SIZE,
+  PatientDetailSchema,
+  PatientPageSchema,
+  UpdatePatientMemoSchema,
+  type PatientDetail,
+} from '../domain/patient';
 import { request } from './client';
 
 export interface AppointmentFilters {
@@ -20,6 +26,7 @@ export const queryKeys = {
   doctors: ['doctors'] as const,
   patients: ['patients'] as const,
   patientPages: (pageSize: number) => ['patients', 'pages', pageSize] as const,
+  patientDetail: (id: string) => ['patients', 'detail', id] as const,
 };
 
 function toSearch(filters: AppointmentFilters): string {
@@ -95,5 +102,38 @@ export function useUpdateAppointmentStatus() {
         body: JSON.stringify({ status }),
       }),
     onSuccess: invalidate,
+  });
+}
+
+export function usePatient(id: string) {
+  return useQuery({
+    queryKey: queryKeys.patientDetail(id),
+    queryFn: ({ signal }) => request(PatientDetailSchema, `/api/patients/${id}`, { signal }),
+  });
+}
+
+/**
+ * 메모 저장 — 낙관적 업데이트.
+ * 서버 응답을 기다리지 않고 화면을 먼저 바꾸고, 실패하면 이전 값으로 되돌린다.
+ */
+export function useUpdatePatientMemo(id: string) {
+  const queryClient = useQueryClient();
+  const key = queryKeys.patientDetail(id);
+  return useMutation({
+    mutationFn: (memo: string) =>
+      request(UpdatePatientMemoSchema, `/api/patients/${id}/memo`, {
+        method: 'PATCH',
+        body: JSON.stringify({ memo }),
+      }),
+    onMutate: async (memo) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<PatientDetail>(key);
+      if (previous) queryClient.setQueryData<PatientDetail>(key, { ...previous, memo });
+      return { previous };
+    },
+    onError: (_error, _memo, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
   });
 }
