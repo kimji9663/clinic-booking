@@ -46,8 +46,23 @@ const ongyeolDerma: BrandTokens = {
   density: 'comfortable',
 };
 
+/** 가상 고객사 4 — 자연스러운 한의원. 연두색은 흰 글자 대비가 부족해 자동 보정 대상이 된다. */
+const saebomOriental: BrandTokens = {
+  id: 'saebom-oriental',
+  name: '새봄한의원',
+  shortName: '새봄한의원',
+  department: '한방내과',
+  tagline: '몸의 균형을 되찾는 한방 진료',
+  colors: { primary: '#7FA33A', secondary: '#9C5B3B', background: '#F8F6EF' },
+  onPrimary: 'light',
+  typography: { body: PRETENDARD, heading: SERIF_KR },
+  radius: 12,
+  density: 'comfortable',
+};
+
 export const brands: Readonly<Record<BrandId, BrandTokens>> = {
   'sky-pediatrics': skyPediatrics,
   'barun-dental': barunDental,
   'ongyeol-derma': ongyeolDerma,
+  'saebom-oriental': saebomOriental,
 };

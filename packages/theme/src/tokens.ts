@@ -1,5 +1,10 @@
 /** 서비스에 등록된 고객사(병원) ID 목록. 새 고객사는 여기와 brands/ 에만 추가하면 된다. */
-export const brandIds = ['sky-pediatrics', 'barun-dental', 'ongyeol-derma'] as const;
+export const brandIds = [
+  'sky-pediatrics',
+  'barun-dental',
+  'ongyeol-derma',
+  'saebom-oriental',
+] as const;
 
 export type BrandId = (typeof brandIds)[number];
 
