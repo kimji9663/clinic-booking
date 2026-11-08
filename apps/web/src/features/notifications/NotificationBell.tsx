@@ -57,7 +57,8 @@ export function NotificationBell() {
           aria-controls={open ? popoverId : undefined}
           onClick={(event) => setAnchor(event.currentTarget)}
         >
-          <Badge badgeContent={unreadCount} color="error" max={99}>
+          {/* 0 일 때도 숨은 "0" 글자가 남으면 버튼 이름(알림)과 보이는 글자가 어긋난다 → 비워 둔다 */}
+          <Badge badgeContent={unreadCount || undefined} color="error" max={99}>
             <NotificationsIcon />
           </Badge>
         </IconButton>

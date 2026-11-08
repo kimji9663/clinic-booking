@@ -53,4 +53,9 @@ export default tseslint.config(
     files: ['*.config.{js,ts}', 'e2e/**/*.ts', '.storybook/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
     languageOptions: { globals: { ...globals.node } },
   },
+  {
+    // 성능 측정 스크립트는 page.evaluate 안에서 브라우저 코드를 실행한다
+    files: ['scripts/bench/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
 );

@@ -19,6 +19,16 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # 번들 크기 예산 (.size-limit.json): 넘으면 실패
+      - run: npm run size
+      # Lighthouse: 접근성 0.95·권장사항 0.9 미만, CLS 0.1 초과면 실패 (lighthouserc.json)
+      - run: npm run lighthouse
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-report
+          path: .lighthouseci
+          retention-days: 14
       - run: npm run build-storybook -- --quiet
 
   e2e:

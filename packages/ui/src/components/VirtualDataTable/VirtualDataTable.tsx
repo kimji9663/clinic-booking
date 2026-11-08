@@ -13,7 +13,16 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import { useVirtualizer, useWindowVirtualizer } from '@tanstack/react-virtual';
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  memo,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { visuallyHidden } from '../../a11y';
 import { vars } from '../../palette';
 import { TableSkeleton, renderCell, type Column } from '../DataTable/column';
@@ -144,6 +153,7 @@ export function VirtualDataTable<T>({
   }, [isWindow, hasList, isMobile]);
 
   const items = virtualizer.getVirtualItems();
+  const mobileColumns = useMemo(() => columns.filter((column) => !column.hideOnMobile), [columns]);
   const lastIndex = items.at(-1)?.index ?? -1;
 
   // 마지막으로 그려진 행이 끝에 가까워지면 다음 페이지 요청
@@ -185,15 +195,6 @@ export function VirtualDataTable<T>({
     </span>
   );
 
-  const loader = (
-    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
-      <CircularProgress size={16} aria-hidden="true" />
-      <Typography variant="body2" color="text.secondary">
-        불러오는 중…
-      </Typography>
-    </Stack>
-  );
-
   // container 모드의 스크롤 영역: 키보드로 포커스해 스크롤할 수 있어야 한다 (WCAG 2.1.1)
   // window 모드는 페이지 자체가 스크롤되므로 별도 영역이 필요 없다
   const scrollProps = isWindow
@@ -213,7 +214,6 @@ export function VirtualDataTable<T>({
       } as const);
 
   if (isMobile) {
-    const mobileColumns = columns.filter((column) => !column.hideOnMobile);
     return (
       <Box>
         {title}
@@ -225,42 +225,16 @@ export function VirtualDataTable<T>({
             sx={{ listStyle: 'none', m: 0, px: 0, py: 0 }}
             style={{ paddingTop, paddingBottom }}
           >
-            {items.map((item) => {
-              const row = rows[item.index];
-              return (
-                <Box
-                  component="li"
-                  key={item.key}
-                  data-index={item.index}
-                  ref={virtualizer.measureElement}
-                  aria-setsize={total}
-                  aria-posinset={item.index + 1}
-                  sx={{ pb: 1.5 }}
-                >
-                  {row ? (
-                    <Card sx={{ p: 2 }}>
-                      <Box
-                        component="dl"
-                        sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 1, m: 0 }}
-                      >
-                        {mobileColumns.map((column) => (
-                          <Box key={column.key} sx={{ display: 'contents' }}>
-                            <Typography component="dt" variant="label" color="text.secondary">
-                              {column.header}
-                            </Typography>
-                            <Box component="dd" sx={{ m: 0 }}>
-                              {renderCell(column, row)}
-                            </Box>
-                          </Box>
-                        ))}
-                      </Box>
-                    </Card>
-                  ) : (
-                    <Box sx={{ py: 2 }}>{loader}</Box>
-                  )}
-                </Box>
-              );
-            })}
+            {items.map((item) => (
+              <VirtualCard
+                key={item.key}
+                index={item.index}
+                row={rows[item.index]}
+                columns={mobileColumns}
+                total={total}
+                measureRef={virtualizer.measureElement}
+              />
+            ))}
           </Box>
         </Box>
       </Box>
@@ -318,28 +292,15 @@ export function VirtualDataTable<T>({
             </TableHead>
             <TableBody ref={setListRef}>
               {spacer(paddingTop)}
-              {items.map((item) => {
-                const row = rows[item.index];
-                return (
-                  <TableRow
-                    key={item.key}
-                    data-index={item.index}
-                    ref={virtualizer.measureElement}
-                    aria-rowindex={item.index + 2}
-                    hover={Boolean(row)}
-                  >
-                    {row ? (
-                      columns.map((column) => (
-                        <TableCell key={column.key} align={column.align ?? 'left'}>
-                          {renderCell(column, row)}
-                        </TableCell>
-                      ))
-                    ) : (
-                      <TableCell colSpan={columns.length}>{loader}</TableCell>
-                    )}
-                  </TableRow>
-                );
-              })}
+              {items.map((item) => (
+                <VirtualTableRow
+                  key={item.key}
+                  index={item.index}
+                  row={rows[item.index]}
+                  columns={columns}
+                  measureRef={virtualizer.measureElement}
+                />
+              ))}
               {spacer(paddingBottom)}
             </TableBody>
           </Table>
@@ -348,3 +309,91 @@ export function VirtualDataTable<T>({
     </Box>
   );
 }
+
+function Loader() {
+  return (
+    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
+      <CircularProgress size={16} aria-hidden="true" />
+      <Typography variant="body2" color="text.secondary">
+        불러오는 중…
+      </Typography>
+    </Stack>
+  );
+}
+
+interface VirtualItemProps<T> {
+  index: number;
+  /** undefined 면 "불러오는 중" 행 */
+  row: T | undefined;
+  columns: readonly Column<T>[];
+  /** virtualizer.measureElement (인스턴스마다 고정된 함수) */
+  measureRef: (node: Element | null) => void;
+}
+
+/**
+ * 행 단위 메모이제이션.
+ * 스크롤할 때마다 표 전체가 다시 렌더링되지만, 행의 props(행 데이터·위치)가 그대로면 건너뛴다.
+ * → 새로 화면에 들어온 행만 렌더링 (측정: docs/performance.md)
+ */
+function VirtualTableRowImpl<T>({ index, row, columns, measureRef }: VirtualItemProps<T>) {
+  return (
+    <TableRow data-index={index} ref={measureRef} aria-rowindex={index + 2} hover={Boolean(row)}>
+      {row ? (
+        columns.map((column) => (
+          <TableCell key={column.key} align={column.align ?? 'left'}>
+            {renderCell(column, row)}
+          </TableCell>
+        ))
+      ) : (
+        <TableCell colSpan={columns.length}>
+          <Loader />
+        </TableCell>
+      )}
+    </TableRow>
+  );
+}
+// memo 는 제네릭을 잃으므로 원래 함수 타입으로 되돌린다
+const VirtualTableRow = memo(VirtualTableRowImpl) as typeof VirtualTableRowImpl;
+
+interface VirtualCardProps<T> extends VirtualItemProps<T> {
+  /** 전체 개수 (aria-setsize) */
+  total: number;
+}
+
+function VirtualCardImpl<T>({ index, row, columns, total, measureRef }: VirtualCardProps<T>) {
+  return (
+    <Box
+      component="li"
+      data-index={index}
+      ref={measureRef}
+      aria-setsize={total}
+      aria-posinset={index + 1}
+      sx={{ pb: 1.5 }}
+    >
+      {row ? (
+        <Card sx={{ p: 2 }}>
+          <Box
+            component="dl"
+            sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 1, m: 0 }}
+          >
+            {columns.map((column) => (
+              <Box key={column.key} sx={{ display: 'contents' }}>
+                <Typography component="dt" variant="label" color="text.secondary">
+                  {column.header}
+                </Typography>
+                <Box component="dd" sx={{ m: 0 }}>
+                  {renderCell(column, row)}
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </Card>
+      ) : (
+        <Box sx={{ py: 2 }}>
+          <Loader />
+        </Box>
+      )}
+    </Box>
+  );
+}
+const VirtualCard = memo(VirtualCardImpl) as typeof VirtualCardImpl;

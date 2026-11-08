@@ -13,6 +13,8 @@ function SyncMode({ mode, children }: { mode: 'light' | 'dark'; children: ReactN
 
 /** 툴바에서 고른 고객사 테마를 모든 스토리에 적용 */
 const withBrandTheme: Decorator = (Story, context) => {
+  // 성능 비교 스토리는 각자 테마 구성을 갖고 있으므로 감싸지 않는다
+  if (context.title.startsWith('Benchmarks/')) return <Story />;
   const brandId = isBrandId(context.globals.brand) ? context.globals.brand : DEFAULT_BRAND_ID;
   const mode = context.globals.mode === 'dark' ? 'dark' : 'light';
   return (
