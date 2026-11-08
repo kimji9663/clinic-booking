@@ -7,6 +7,15 @@
 
 - **데모**: https://kimji9663.github.io/clinic-booking/ (고객사 바꿔 보기: [바른치과](https://kimji9663.github.io/clinic-booking/?brand=barun-dental) · [온결피부과](https://kimji9663.github.io/clinic-booking/?brand=ongyeol-derma))
 - **Storybook**: https://kimji9663.github.io/clinic-booking/storybook/
+- **문서**: [케이스 스터디(구조·문제 해결)](docs/case-study.md) · [성능 측정](docs/performance.md) · [신규 고객사 추가 공수](docs/brand-onboarding.md)
+
+| 핵심 수치                 |                                                |
+| ------------------------- | ---------------------------------------------- |
+| 10,000행 가상화           | DOM 노드 441배↓ · 첫 렌더 57배↑ · 메모리 13배↓ |
+| 다크 모드 전환 (CSS 변수) | 화면 반영 3.8배↑ · React 리렌더 0              |
+| Lighthouse                | 접근성 100 · 권장사항 100 · SEO 100 · CLS 0    |
+| 신규 고객사 추가          | 파일 2개 · +21줄 · 화면 코드 0줄               |
+
 - 백엔드 없이 브라우저 안의 목업 API(MSW)로 동작하며, 변경한 데이터는 브라우저(localStorage)에만 저장됩니다.
 
 ## 가상 고객사
@@ -49,19 +58,22 @@ npm run dev            # http://localhost:5173
 npm run storybook      # http://localhost:6006
 ```
 
-| 스크립트                  | 설명                                                     |
-| ------------------------- | -------------------------------------------------------- |
-| `npm run typecheck`       | 전체 워크스페이스 TypeScript 검사 (strict)               |
-| `npm run lint`            | ESLint (jsx-a11y, react-hooks, hex 색상 하드코딩 금지)   |
-| `npm test`                | Vitest 단위·통합 테스트 (앱 테스트는 MSW 목업 서버 사용) |
-| `npm run build`           | 앱 프로덕션 빌드                                         |
-| `npm run build-storybook` | Storybook 정적 빌드                                      |
-| `npm run e2e`             | Playwright (최초 1회 `npx playwright install` 필요)      |
-| `npm run build:pages`     | GitHub Pages 배포용 빌드 (앱 + `/storybook/`, 404.html)  |
+| 스크립트                  | 설명                                                         |
+| ------------------------- | ------------------------------------------------------------ |
+| `npm run typecheck`       | 전체 워크스페이스 TypeScript 검사 (strict)                   |
+| `npm run lint`            | ESLint (jsx-a11y, react-hooks, hex 색상 하드코딩 금지)       |
+| `npm test`                | Vitest 단위·통합 테스트 (앱 테스트는 MSW 목업 서버 사용)     |
+| `npm run build`           | 앱 프로덕션 빌드                                             |
+| `npm run build-storybook` | Storybook 정적 빌드                                          |
+| `npm run e2e`             | Playwright (최초 1회 `npx playwright install` 필요)          |
+| `npm run build:pages`     | GitHub Pages 배포용 빌드 (앱 + `/storybook/`, 404.html)      |
+| `npm run bench`           | 성능 비교 측정 (가상화·다크 모드 전환) → `.bench/results.md` |
+| `npm run size`            | 번들 크기 예산 검사 (빌드 후)                                |
+| `npm run lighthouse`      | Lighthouse CI (빌드 후, 접근성·권장사항·CLS 기준)            |
 
 ### 배포 (GitHub Pages)
 
-- `main` 에 푸시 → **CI**(lint·타입·단위 테스트·빌드·E2E 5개 브라우저) 통과 → **Deploy** 워크플로가 같은 커밋을 배포
+- `main` 에 푸시 → **CI**(lint·타입·단위 테스트·빌드·번들 예산·Lighthouse·E2E 5개 브라우저) 통과 → **Deploy** 워크플로가 같은 커밋을 배포
 - 하위 경로(`/clinic-booking/`) 대응: Vite `base`(`BASE_PATH`), React Router `basename`, MSW 서비스 워커 경로를 `BASE_URL` 기준으로 지정
 - Pages 는 SPA 주소 재작성을 지원하지 않으므로 `index.html` 을 `404.html` 로 복사 → `/clinic-booking/patients` 에서 새로고침해도 앱이 뜨고 라우터가 이어받음
 - 저장소 설정: Settings → Pages → Source 를 **GitHub Actions** 로 지정
@@ -85,7 +97,7 @@ npm run storybook      # http://localhost:6006
 - `ensureContrast()`: 브랜드 색이 WCAG AA(4.5:1) 대비 미달이면 기준을 만족할 때까지 명도를 조정
 - 색이 **실제로 놓이는 모든 곳**(색 배경 위 글자, 카드·페이지 배경 위 글자, soft 버튼의 반투명 배경 위 글자)을 기준으로 보정
 - 라이트·다크 모드 × 등록된 모든 고객사 × 색상 6종을 단위 테스트로 검증 (고객사를 추가하면 자동 포함)
-- MUI `getContrastRatio`는 소수점 2자리 반올림이라 4.49를 4.5로 통과시킨다 → E2E(axe)에서 발견해 정확한 계산으로 교체
+- MUI `getContrastRatio`는 내부에서 휘도(`getLuminance`)를 소수점 3자리로 반올림해, 4.5 미만인 대비를 4.5 이상으로 계산할 수 있다 → E2E(axe)에서 발견해 정확한 계산으로 교체
 
 ### 3. 데이터 흐름
 

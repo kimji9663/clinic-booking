@@ -20,7 +20,7 @@ function toHex([r, g, b]: Rgb): string {
 }
 
 /**
- * WCAG 상대 휘도. MUI 의 getLuminance/getContrastRatio 는 소수점을 반올림해서
+ * WCAG 상대 휘도. MUI 의 getLuminance 는 휘도를 소수점 3자리로 반올림하고 getContrastRatio 가 그 값을 쓰기 때문에
  * 4.49 를 4.5 로 판정하는 경계값 오차가 있어 직접 계산한다.
  */
 export function relativeLuminance(color: string): number {
