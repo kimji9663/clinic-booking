@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Paper from '@mui/material/Paper';
+import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -41,7 +42,11 @@ export interface DataTableProps<T> {
   rows: readonly T[];
   getRowId: (row: T) => string;
   emptyState?: ReactNode;
+  /** true 이면 스켈레톤을 보여주고 aria-busy 로 로딩 중임을 알린다 */
+  loading?: boolean;
 }
+
+const SKELETON_ROWS = 4;
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) return '';
@@ -67,9 +72,23 @@ export function DataTable<T>({
   rows,
   getRowId,
   emptyState,
+  loading = false,
 }: DataTableProps<T>) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  if (loading) {
+    return (
+      <Paper variant="outlined" aria-busy="true" sx={{ p: 2 }}>
+        <span style={visuallyHidden}>{caption} 불러오는 중</span>
+        <Stack spacing={1.5} aria-hidden="true">
+          {Array.from({ length: SKELETON_ROWS }, (_, i) => (
+            <Skeleton key={i} variant="rounded" height={36} />
+          ))}
+        </Stack>
+      </Paper>
+    );
+  }
 
   if (rows.length === 0) {
     return (
@@ -116,7 +135,17 @@ export function DataTable<T>({
   return (
     <Paper variant="outlined">
       <TableContainer>
-        <Table sx={{ captionSide: 'top' }}>
+        {/* MUI 기본 스타일은 caption 을 표 아래에 두므로 제목처럼 위로 올린다 */}
+        <Table
+          sx={{
+            '& caption': {
+              captionSide: 'top',
+              typography: 'subtitle1',
+              fontWeight: 700,
+              color: 'text.primary',
+            },
+          }}
+        >
           <caption style={showCaption ? undefined : visuallyHidden}>{caption}</caption>
           <TableHead>
             <TableRow>

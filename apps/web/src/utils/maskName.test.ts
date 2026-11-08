@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { maskName } from './maskName';
+import { maskName, maskPhone } from './maskName';
 
 describe('maskName', () => {
   it.each([
@@ -10,5 +10,14 @@ describe('maskName', () => {
     [' 박서아 ', '박*아'],
   ])('%s → %s', (input, expected) => {
     expect(maskName(input)).toBe(expected);
+  });
+});
+
+describe('maskPhone', () => {
+  it.each([
+    ['010-1234-5678', '010-****-5678'],
+    ['011-123-4567', '011-***-4567'],
+  ])('%s → %s', (input, expected) => {
+    expect(maskPhone(input)).toBe(expected);
   });
 });

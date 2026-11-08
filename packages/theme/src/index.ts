@@ -6,6 +6,7 @@ export {
   DARK_TEXT,
   LIGHT_TEXT,
   WCAG_AA,
+  contrastRatio,
   ensureContrast,
   toAccessiblePair,
   type AccessiblePaletteColor,

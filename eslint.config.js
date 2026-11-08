@@ -28,6 +28,8 @@ export default tseslint.config(
     plugins: { ...jsxA11y.flatConfigs.recommended.plugins, 'react-hooks': reactHooks },
     rules: {
       ...jsxA11y.flatConfigs.recommended.rules,
+      // 대화상자의 초기 포커스 지정(WAI-ARIA Dialog 패턴)은 허용. 일반 DOM 요소의 autoFocus 는 계속 금지.
+      'jsx-a11y/no-autofocus': ['error', { ignoreNonDOM: true }],
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
       '@typescript-eslint/no-explicit-any': 'error',

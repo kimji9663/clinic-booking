@@ -34,7 +34,7 @@ export interface AppShellProps {
   children: ReactNode;
 }
 
-const MAIN_ID = 'main-content';
+export const MAIN_CONTENT_ID = 'main-content';
 
 /** Tab 키를 누르면 가장 먼저 나타나는 "본문 바로가기" 링크 */
 const SkipLink = styled('a')(({ theme }) => ({
@@ -70,7 +70,7 @@ export function AppShell({
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100dvh' }}>
-      <SkipLink href={`#${MAIN_ID}`}>본문 바로가기</SkipLink>
+      <SkipLink href={`#${MAIN_CONTENT_ID}`}>본문 바로가기</SkipLink>
 
       <AppBar
         position="fixed"
@@ -126,8 +126,8 @@ export function AppShell({
           <List>
             {navItems.map((item) => (
               <ListItem key={item.id} disablePadding>
+                {/* href 를 주면 테마의 MuiButtonBase.LinkComponent 로 렌더링된다 (라우터 비의존) */}
                 <ListItemButton
-                  component="a"
                   href={item.href}
                   selected={item.current ?? false}
                   disabled={item.disabled ?? false}
@@ -145,7 +145,7 @@ export function AppShell({
 
       <Box
         component="main"
-        id={MAIN_ID}
+        id={MAIN_CONTENT_ID}
         tabIndex={-1}
         sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, md: 3 }, outline: 'none' }}
       >
