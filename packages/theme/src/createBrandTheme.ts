@@ -15,7 +15,7 @@ import {
   toAccessiblePair,
   type AccessiblePaletteColor,
 } from './contrast';
-import type { BrandTokens } from './tokens';
+import { DARK_BACKGROUND, type BrandTokens } from './tokens';
 
 /** 모든 고객사가 공유하는 상태 색. 브랜드 색과 마찬가지로 대비를 보정해서 쓴다. */
 const SEMANTIC_BASE = {
@@ -26,7 +26,7 @@ const SEMANTIC_BASE = {
 } as const;
 
 /** 다크 모드 표면색. paper 를 DARK_TEXT 와 같게 두어 "버튼 글자 대비 = 표면 위 글자 대비"가 되도록 한다. */
-const DARK_SURFACE = { default: '#121212', paper: DARK_TEXT } as const;
+const DARK_SURFACE = { default: DARK_BACKGROUND, paper: DARK_TEXT } as const;
 
 /** CSS 변수 이름 접두사: --clinic-palette-primary-main 등 */
 export const CSS_VAR_PREFIX = 'clinic';

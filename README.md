@@ -78,6 +78,7 @@ npm run storybook      # http://localhost:6006
   - 모드를 바꾸면 테마를 다시 만들거나 컴포넌트 스타일을 다시 계산하지 않고 `<html data-color-scheme>` 속성만 바뀜
   - 모드는 MUI 가 저장(`clinic-booking.mode`)하고 처음엔 OS 설정(system)을 따름, 전환 중 transition 을 꺼서 한 번에 바뀜
   - 공통 컴포넌트 스타일은 `vars(theme)`로 CSS 변수를 참조 (실제 색을 쓰면 다크 모드로 안 바뀜), 모드별로 다른 값은 `theme.applyStyles('dark', …)`
+  - **새로고침 깜빡임 방지**: 앱 JS·목업 API 준비 전에도 저장된 모드와 고객사 배경을 칠하도록 `<head>`에 동기 스크립트 삽입. 색은 Vite 플러그인이 빌드 시 브랜드 토큰에서 가져옴(고객사 추가 시 수정 불필요)
 
 ### 2. 접근성 자동 보정
 

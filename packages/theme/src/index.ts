@@ -20,6 +20,7 @@ export {
   type ContrastResult,
 } from './contrast';
 export {
+  DARK_BACKGROUND,
   DEFAULT_BRAND_ID,
   brandIds,
   isBrandId,

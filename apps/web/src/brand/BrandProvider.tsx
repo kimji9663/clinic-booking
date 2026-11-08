@@ -3,10 +3,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { routerLinkThemeOptions } from '../app/LinkBehavior';
-
-const BRAND_KEY = 'clinic-booking.brand';
-/** 화면 모드(light/dark/system) 저장 키 — MUI 가 직접 읽고 쓴다 */
-export const MODE_KEY = 'clinic-booking.mode';
+import { BRAND_STORAGE_KEY, INITIAL_SCHEME_STYLE_ID, MODE_STORAGE_KEY } from './storageKeys';
 
 interface BrandContextValue {
   brandId: BrandId;
@@ -35,7 +32,7 @@ function safeSet(key: string, value: string): void {
 function readInitialBrand(): BrandId {
   const fromUrl = new URLSearchParams(window.location.search).get('brand');
   if (isBrandId(fromUrl)) return fromUrl;
-  const saved = safeGet(BRAND_KEY);
+  const saved = safeGet(BRAND_STORAGE_KEY);
   return isBrandId(saved) ? saved : DEFAULT_BRAND_ID;
 }
 
@@ -47,7 +44,9 @@ function readInitialBrand(): BrandId {
  */
 export function BrandProvider({ children }: { children: ReactNode }) {
   const [brandId, setBrandId] = useState<BrandId>(readInitialBrand);
-  useEffect(() => safeSet(BRAND_KEY, brandId), [brandId]);
+  useEffect(() => safeSet(BRAND_STORAGE_KEY, brandId), [brandId]);
+  // 앱 스타일(CssBaseline)이 적용됐으니 index.html 이 미리 칠해 둔 배경을 걷어 낸다
+  useEffect(() => document.getElementById(INITIAL_SCHEME_STYLE_ID)?.remove(), []);
 
   const theme = useMemo(
     () => createBrandTheme(brands[brandId], { components: routerLinkThemeOptions.components }),
@@ -60,7 +59,7 @@ export function BrandProvider({ children }: { children: ReactNode }) {
       <ThemeProvider
         theme={theme}
         defaultMode="system"
-        modeStorageKey={MODE_KEY}
+        modeStorageKey={MODE_STORAGE_KEY}
         disableTransitionOnChange
       >
         <CssBaseline enableColorScheme />

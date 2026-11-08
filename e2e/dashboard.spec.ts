@@ -43,6 +43,43 @@ test.describe('예약 대시보드', () => {
   });
 });
 
+test.describe('새로고침 깜빡임 방지', () => {
+  const background = (page: Page) =>
+    page.evaluate(() => ({
+      scheme: document.documentElement.getAttribute('data-color-scheme'),
+      color: getComputedStyle(document.documentElement).backgroundColor,
+    }));
+
+  test('앱 JS 가 뜨기 전에도 저장된 모드·고객사 배경이 칠해져 있다', async ({ page }) => {
+    // 앱 진입 스크립트를 막아 "JS 를 받기 전" 순간을 재현
+    await page.route('**/src/main.tsx', (route) => route.abort());
+
+    await page.addInitScript(() => window.localStorage.setItem('clinic-booking.mode', 'dark'));
+    await page.goto('/');
+    expect(await background(page)).toEqual({ scheme: 'dark', color: 'rgb(18, 18, 18)' });
+
+    await page.addInitScript(() => window.localStorage.setItem('clinic-booking.mode', 'light'));
+    await page.goto('/?brand=ongyeol-derma');
+    // 온결피부과 배경 #FBF7F4
+    expect(await background(page)).toEqual({ scheme: 'light', color: 'rgb(251, 247, 244)' });
+  });
+
+  test('앱이 뜨면 미리 칠한 배경은 걷어 내고 테마가 이어받는다', async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem('clinic-booking.mode', 'dark'));
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1, name: '오늘의 예약' })).toBeVisible();
+    await expect(page.locator('#initial-color-scheme')).toHaveCount(0);
+    expect(
+      await page.evaluate(() => document.documentElement.getAttribute('data-color-scheme')),
+    ).toBe('dark');
+    // 이후 모드를 바꾸면 그대로 따라간다
+    await page.getByRole('button', { name: '라이트 모드로 전환' }).click();
+    expect(
+      await page.evaluate(() => document.documentElement.getAttribute('data-color-scheme')),
+    ).toBe('light');
+  });
+});
+
 test.describe('예약 등록', () => {
   test('폼을 작성해 예약을 등록하면 목록에 나타난다', async ({ page }) => {
     await page.goto('/appointments');

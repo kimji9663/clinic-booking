@@ -10,6 +10,9 @@ export type BrandId = (typeof brandIds)[number];
 
 export const DEFAULT_BRAND_ID: BrandId = 'sky-pediatrics';
 
+/** 다크 모드 페이지 배경 (모든 고객사 공통) */
+export const DARK_BACKGROUND = '#121212';
+
 export function isBrandId(value: unknown): value is BrandId {
   return typeof value === 'string' && (brandIds as readonly string[]).includes(value);
 }
