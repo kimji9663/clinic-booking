@@ -29,7 +29,7 @@ clinic-booking/
 │     ├─ src/domain/    예약·의사·환자 zod 스키마와 상태 전이 규칙
 │     ├─ src/features/  예약 등록 폼, 상태 변경 작업
 │     ├─ src/pages/     대시보드 / 예약 관리 / 진료 일정 / 환자
-│     └─ src/mocks/     MSW 핸들러 + 인메모리 DB (백엔드 없는 데모용)
+│     └─ src/mocks/     MSW 핸들러 + 목업 DB (localStorage 저장, 백엔드 없는 데모용)
 ├─ .storybook/ 컴포넌트 문서 + 브랜드 전환 툴바 + a11y 검사
 └─ e2e/        Playwright 크로스 브라우저 + axe 접근성 테스트
 ```
@@ -69,7 +69,10 @@ npm run storybook      # http://localhost:6006
 
 ### 3. 데이터 흐름
 
-- MSW(서비스 워커)가 `/api/*` 요청을 가로채 인메모리 DB로 응답 → 백엔드 없이 배포해도 동작
+- MSW(서비스 워커)가 `/api/*` 요청을 가로채 목업 DB로 응답 → 백엔드 없이 배포해도 동작
+  - 서비스 워커를 쓸 수 없는 환경에서는 페이지 내 fetch 가로채기로 자동 전환
+  - 변경 사항은 localStorage(`clinic-booking:mock-db`)에 저장되어 새로고침해도 유지, 날짜가 바뀌면 오늘 기준 시드로 초기화
+  - 직접 초기화하려면 개발자 도구에서 `localStorage.removeItem('clinic-booking:mock-db')` 후 새로고침
 - 모든 응답은 `request(schema, ...)`에서 zod로 검증, TanStack Query 로 캐시·로딩·오류 상태 관리
 - 예약 생성·상태 변경 후 관련 쿼리(예약, 환자)를 무효화해 화면 자동 갱신
 - 상태 전이 규칙(`승인 대기 → 예약 확정 → 내원 접수 → 진료 완료`, 취소 가능 상태)을 도메인 함수로 정의해 화면과 목업 서버가 공유

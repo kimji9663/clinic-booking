@@ -1,8 +1,16 @@
 /**
- * 목업 서버용 인메모리 DB. 실제 백엔드가 없는 포트폴리오 데모를 위해 MSW 핸들러가 사용한다.
- * 예약 데이터는 "오늘" 기준 ±3일로 생성해 언제 열어도 화면이 비어 있지 않게 한다.
+ * 목업 서버용 DB. 실제 백엔드가 없는 포트폴리오 데모를 위해 MSW 핸들러가 사용한다.
+ * - 변경 사항은 localStorage 에 저장해 새로고침해도 유지된다.
+ * - 예약 데이터는 "오늘" 기준 ±3일로 생성하고, 날짜가 바뀌면 새로 만들어
+ *   언제 열어도 화면이 비어 있지 않게 한다.
  */
-import type { Appointment, AppointmentStatus, VisitType } from '../domain/appointment';
+import { z } from 'zod';
+import {
+  AppointmentSchema,
+  type Appointment,
+  type AppointmentStatus,
+  type VisitType,
+} from '../domain/appointment';
 import type { Doctor } from '../domain/doctor';
 import type { Patient } from '../domain/patient';
 import { addDays, today } from '../utils/date';
@@ -58,6 +66,42 @@ const seedRows: readonly SeedRow[] = [
 
 let appointments: Appointment[] = [];
 let sequence = 0;
+let seedDate = today();
+
+export const DB_STORAGE_KEY = 'clinic-booking:mock-db';
+
+/** 저장 형식이 바뀌면 version 을 올려 예전 데이터를 버린다 */
+const StoredDbSchema = z.object({
+  version: z.literal(1),
+  seedDate: z.string(),
+  sequence: z.number().int().nonnegative(),
+  appointments: z.array(AppointmentSchema),
+});
+
+function persist(): void {
+  try {
+    window.localStorage.setItem(
+      DB_STORAGE_KEY,
+      JSON.stringify({ version: 1, seedDate, sequence, appointments }),
+    );
+  } catch {
+    // 저장소를 쓸 수 없으면(시크릿 모드 용량 제한 등) 메모리에서만 동작
+  }
+}
+
+function restore(baseDate: string): boolean {
+  try {
+    const raw = window.localStorage.getItem(DB_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = StoredDbSchema.safeParse(JSON.parse(raw));
+    // 형식이 다르거나(손상·구버전) 다른 날짜에 만든 데이터면 새로 시드
+    if (!parsed.success || parsed.data.seedDate !== baseDate) return false;
+    ({ sequence, seedDate, appointments } = parsed.data);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function doctorName(doctorId: string): string {
   return doctors.find((d) => d.id === doctorId)?.name ?? '미지정';
@@ -70,6 +114,7 @@ export function nextId(): string {
 
 export function resetDb(baseDate: string = today()): void {
   sequence = 0;
+  seedDate = baseDate;
   appointments = seedRows.map(([offset, time, person, doctorId, visitType, status, memo]) => {
     const [name, phone] = people[person] ?? people[0];
     return {
@@ -85,6 +130,12 @@ export function resetDb(baseDate: string = today()): void {
       ...(memo ? { memo } : {}),
     };
   });
+  persist();
+}
+
+/** 저장된 데이터가 있으면 복원하고, 없거나 쓸 수 없으면 시드 데이터로 시작 */
+export function loadDb(baseDate: string = today()): void {
+  if (!restore(baseDate)) resetDb(baseDate);
 }
 
 export const db = {
@@ -98,6 +149,7 @@ export const db = {
   },
   insert(appointment: Appointment): void {
     appointments.push(appointment);
+    persist();
   },
   update(id: string, patch: Partial<Appointment>): Appointment | undefined {
     const index = appointments.findIndex((a) => a.id === id);
@@ -105,6 +157,7 @@ export const db = {
     if (!current) return undefined;
     const updated = { ...current, ...patch };
     appointments[index] = updated;
+    persist();
     return updated;
   },
   doctorName,
@@ -137,4 +190,4 @@ export const db = {
   },
 };
 
-resetDb();
+loadDb();
