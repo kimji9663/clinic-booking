@@ -1,7 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+// 등록된 모든 고객사를 자동으로 검사 (새 고객사를 추가해도 이 파일은 바꾸지 않는다)
+import { brandIds } from '../packages/theme/src/tokens';
 
-const brandIds = ['sky-pediatrics', 'barun-dental', 'ongyeol-derma'] as const;
 const pages = [
   { path: '/', heading: '오늘의 예약' },
   { path: '/appointments', heading: '예약 관리' },
