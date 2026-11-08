@@ -36,6 +36,25 @@ export interface AppShellProps {
 
 export const MAIN_CONTENT_ID = 'main-content';
 
+/**
+ * 고정 상단 바 높이를 담는 CSS 변수. 본문의 sticky 요소(표 머리글 등)가 상단 바 아래에 붙도록 쓴다.
+ * 높이는 MUI Toolbar 와 같은 규칙(theme.mixins.toolbar: 모바일 56 / 가로 48 / sm 이상 64)을 따른다.
+ */
+export const APP_HEADER_HEIGHT_VAR = '--app-header-height';
+
+function headerHeightVars(toolbar: Record<string, unknown>) {
+  const vars: Record<string, string | Record<string, string>> = {};
+  for (const [key, value] of Object.entries(toolbar)) {
+    if (key === 'minHeight' && typeof value === 'number') {
+      vars[APP_HEADER_HEIGHT_VAR] = `${value}px`;
+    } else if (typeof value === 'object' && value !== null && 'minHeight' in value) {
+      // 미디어쿼리 키 (예: '@media (min-width:600px)')
+      vars[key] = { [APP_HEADER_HEIGHT_VAR]: `${String(value.minHeight)}px` };
+    }
+  }
+  return vars;
+}
+
 /** Tab 키를 누르면 가장 먼저 나타나는 "본문 바로가기" 링크 */
 const SkipLink = styled('a')(({ theme }) => ({
   position: 'absolute',
@@ -69,7 +88,13 @@ export function AppShell({
   const navId = useId();
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100dvh' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        minHeight: '100dvh',
+        ...headerHeightVars(theme.mixins.toolbar as Record<string, unknown>),
+      }}
+    >
       <SkipLink href={`#${MAIN_CONTENT_ID}`}>본문 바로가기</SkipLink>
 
       <AppBar

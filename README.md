@@ -21,7 +21,7 @@
 clinic-booking/
 ├─ packages/
 │  ├─ theme/   @clinic/theme — 브랜드 토큰, createBrandTheme, 명도 대비 보정, MUI 타입 확장
-│  └─ ui/      @clinic/ui    — 공통 컴포넌트 (AppShell, DataTable, FormDialog, ConfirmDialog, Toast ...)
+│  └─ ui/      @clinic/ui    — 공통 컴포넌트 (AppShell, DataTable, VirtualDataTable, FormDialog, ConfirmDialog, Toast ...)
 ├─ apps/
 │  └─ web/     @clinic/web   — 병원 예약 관리 앱 (Vite)
 │     ├─ src/app/       라우트(코드 스플리팅), Provider, 레이아웃
@@ -75,6 +75,7 @@ npm run storybook      # http://localhost:6006
   - 직접 초기화하려면 개발자 도구에서 `localStorage.removeItem('clinic-booking:mock-db')` 후 새로고침
 - 모든 응답은 `request(schema, ...)`에서 zod로 검증, TanStack Query 로 캐시·로딩·오류 상태 관리
 - 예약 생성·상태 변경 후 관련 쿼리(예약, 환자)를 무효화해 화면 자동 갱신
+- 환자 150명은 `GET /api/patients?cursor=&limit=` 커서 페이지네이션 + `useInfiniteQuery` 로 30명씩 이어 받음
 - 상태 전이 규칙(`승인 대기 → 예약 확정 → 내원 접수 → 진료 완료`, 취소 가능 상태)을 도메인 함수로 정의해 화면과 목업 서버가 공유
 - 필터(날짜·상태)는 URL 쿼리에 저장 → 새로고침·뒤로가기·링크 공유 시 유지
 
@@ -97,6 +98,11 @@ npm run storybook      # http://localhost:6006
 
 - `AppShell`: md 이상 고정 사이드바 / 미만 햄버거 + Drawer. `FormDialog`: 모바일에서 전체 화면
 - `DataTable`: sm 미만에서 표 → 카드 + 정의 목록(`dl`)으로 전환, 로딩 시 스켈레톤 + `aria-busy`
+- `VirtualDataTable`: TanStack Virtual 로 보이는 행만 렌더링 (10,000행 스토리), `onLoadMore` 로 무한 스크롤
+  - 렌더링되지 않은 행이 있어도 `aria-rowcount`/`aria-rowindex`(카드는 `aria-setsize`/`aria-posinset`)로 전체 위치 전달
+  - `scrollMode="window"`: 페이지 전체 스크롤을 따라 가상화(`useWindowVirtualizer`), 표 머리글은 AppShell 상단 바 아래(`--app-header-height`)에 고정 — 환자 페이지에서 사용
+  - `scrollMode="container"`(기본): 고정 높이 스크롤 영역, `role="region"` + `tabIndex=0` 으로 키보드(PageDown/End) 스크롤
+  - 불러온 건수는 `role="status"` 로 안내
 - 본문 바로가기, 랜드마크, `aria-current`, 표 `caption`, 키보드 포커스 링
 - 페이지 이동 시 본문으로 포커스 이동 + 문서 제목 갱신 (스크린리더가 새 페이지를 인지)
 - 행마다 반복되는 버튼은 `"14:00 윤*윤 승인"`처럼 구분되는 접근 가능한 이름 제공
@@ -112,7 +118,7 @@ npm run storybook      # http://localhost:6006
 | 종류     | 도구                     | 내용                                                                                                                          |
 | -------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | 단위     | Vitest                   | 명도 대비 보정, 테마(모드별), 마스킹, 날짜·전화번호 포맷                                                                      |
-| 컴포넌트 | Vitest + Testing Library | DataTable, AppShell, ConfirmDialog, Toast, StatusBadge                                                                        |
+| 컴포넌트 | Vitest + Testing Library | DataTable, VirtualDataTable(가상화 범위·무한 스크롤 호출), AppShell, ConfirmDialog, Toast, StatusBadge                        |
 | 통합     | Vitest + MSW             | 라우팅·포커스 이동, 브랜드/다크 모드 전환, 필터-URL 동기화, 예약 승인·취소, 예약 등록 폼(검증·자동 하이픈·중복 시간·409 처리) |
 | E2E      | Playwright + axe         | 5개 브라우저 환경, 예약 등록 흐름, 전체 페이지 접근성                                                                         |
 
@@ -122,5 +128,6 @@ npm run storybook      # http://localhost:6006
 - [x] TanStack Query + MSW로 목업 API 연결
 - [x] 예약 등록 폼 (react-hook-form + zod) / 확인 Dialog / Toast
 - [x] 다크 모드
+- [x] 환자 150명 대용량 목록: TanStack Virtual 가상화 + 무한 스크롤
 - [ ] 공수 비교 지표: 신규 고객사 추가 시 변경 파일·라인 수 기록
 - [ ] 배포 (Vercel/Netlify) + Storybook 배포

@@ -41,16 +41,18 @@ describe('목업 DB localStorage 저장', () => {
   });
 
   it('손상된 저장본은 무시하고 시드 데이터로 시작한다', () => {
+    resetDb(BASE);
+    const seeded = db.list().length;
     window.localStorage.setItem(DB_STORAGE_KEY, '{ not json');
     loadDb(BASE);
-    expect(db.list()).toHaveLength(18);
+    expect(db.list()).toHaveLength(seeded);
 
     window.localStorage.setItem(
       DB_STORAGE_KEY,
       JSON.stringify({ version: 1, seedDate: BASE, sequence: 1, appointments: [{ id: 1 }] }),
     );
     loadDb(BASE);
-    expect(db.list()).toHaveLength(18);
-    expect(stored()?.appointments).toHaveLength(18);
+    expect(db.list()).toHaveLength(seeded);
+    expect(stored()?.appointments).toHaveLength(seeded);
   });
 });

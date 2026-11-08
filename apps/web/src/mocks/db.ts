@@ -8,6 +8,7 @@ import { z } from 'zod';
 import {
   AppointmentSchema,
   type Appointment,
+  timeSlots,
   type AppointmentStatus,
   type VisitType,
 } from '../domain/appointment';
@@ -20,7 +21,8 @@ export const doctors: readonly Doctor[] = [
   { id: 'd2', name: '정도윤', title: '원장' },
 ];
 
-const people = [
+/** 화면·테스트에서 직접 참조하는 대표 환자 10명 (오늘 예약 시드에 사용) */
+const featuredPeople: readonly (readonly [name: string, phone: string])[] = [
   ['김민준', '010-2381-4410'],
   ['박서아', '010-5520-1932'],
   ['최지우', '010-7712-0384'],
@@ -31,7 +33,93 @@ const people = [
   ['장시우', '010-8826-5513'],
   ['한지안', '010-2259-7740'],
   ['오은우', '010-6093-1187'],
-] as const;
+];
+
+export const PATIENT_COUNT = 150;
+
+/** 매번 같은 결과를 내는 의사 난수 (mulberry32). 새로고침·테스트마다 데이터가 달라지지 않게 한다. */
+function createRandom(seed: number) {
+  let state = seed;
+  const next = () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const int = (min: number, max: number) => min + Math.floor(next() * (max - min + 1));
+  const pick = <T>(list: readonly T[]): T => list[int(0, list.length - 1)] as T;
+  return { next, int, pick };
+}
+
+const SURNAMES = [
+  '김',
+  '이',
+  '박',
+  '최',
+  '정',
+  '강',
+  '조',
+  '윤',
+  '장',
+  '임',
+  '한',
+  '오',
+  '서',
+  '신',
+  '권',
+  '황',
+  '안',
+  '송',
+  '류',
+  '홍',
+];
+const GIVEN_NAMES = [
+  '서준',
+  '하윤',
+  '도윤',
+  '서연',
+  '시우',
+  '지유',
+  '주원',
+  '하은',
+  '지호',
+  '수아',
+  '예준',
+  '지아',
+  '건우',
+  '서윤',
+  '현우',
+  '다은',
+  '우진',
+  '채원',
+  '선우',
+  '예린',
+  '민재',
+  '소율',
+  '연우',
+  '지민',
+  '유준',
+  '윤서',
+  '정우',
+  '가은',
+  '승현',
+  '나은',
+];
+
+function generatePeople(): (readonly [name: string, phone: string])[] {
+  const random = createRandom(20261108);
+  const phones = new Set(featuredPeople.map(([, phone]) => phone));
+  const result = [...featuredPeople];
+  while (result.length < PATIENT_COUNT) {
+    const phone = `010-${random.int(2000, 9999)}-${String(random.int(0, 9999)).padStart(4, '0')}`;
+    if (phones.has(phone)) continue;
+    phones.add(phone);
+    result.push([`${random.pick(SURNAMES)}${random.pick(GIVEN_NAMES)}`, phone]);
+  }
+  return result;
+}
+
+const people = generatePeople();
 
 type SeedRow = [
   dayOffset: number,
@@ -70,9 +158,10 @@ let seedDate = today();
 
 export const DB_STORAGE_KEY = 'clinic-booking:mock-db';
 
-/** 저장 형식이 바뀌면 version 을 올려 예전 데이터를 버린다 */
+/** 저장 형식이나 시드가 바뀌면 version 을 올려 예전 데이터를 버린다 */
+const DB_VERSION = 2;
 const StoredDbSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(DB_VERSION),
   seedDate: z.string(),
   sequence: z.number().int().nonnegative(),
   appointments: z.array(AppointmentSchema),
@@ -82,7 +171,7 @@ function persist(): void {
   try {
     window.localStorage.setItem(
       DB_STORAGE_KEY,
-      JSON.stringify({ version: 1, seedDate, sequence, appointments }),
+      JSON.stringify({ version: DB_VERSION, seedDate, sequence, appointments }),
     );
   } catch {
     // 저장소를 쓸 수 없으면(시크릿 모드 용량 제한 등) 메모리에서만 동작
@@ -112,24 +201,74 @@ export function nextId(): string {
   return `a-${String(sequence).padStart(3, '0')}`;
 }
 
+function createAppointment(
+  date: string,
+  time: string,
+  person: number,
+  doctorId: string,
+  visitType: VisitType,
+  status: AppointmentStatus,
+  memo?: string,
+): Appointment {
+  const [name, phone] = people[person] ?? ['미상', '010-0000-0000'];
+  return {
+    id: nextId(),
+    date,
+    time,
+    patientName: name,
+    phone,
+    doctorId,
+    doctorName: doctorName(doctorId),
+    visitType,
+    status,
+    ...(memo ? { memo } : {}),
+  };
+}
+
+/**
+ * 대표 환자 외 140명의 과거 진료 이력(-120 ~ -4일)과 일부 향후 예약(+4 ~ +30일).
+ * 오늘 ±3일 시드와 날짜가 겹치지 않아 대시보드·예약 화면 수치는 그대로다.
+ */
+function generateHistory(baseDate: string): Appointment[] {
+  const random = createRandom(42);
+  const taken = new Set<string>();
+  const list: Appointment[] = [];
+  const book = (
+    person: number,
+    offset: number,
+    status: AppointmentStatus,
+    visitType: VisitType,
+  ) => {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const date = addDays(baseDate, offset);
+      const time = random.pick(timeSlots);
+      const doctorId = random.pick(doctors).id;
+      const key = `${date} ${time} ${doctorId}`;
+      if (taken.has(key)) continue;
+      taken.add(key);
+      list.push(createAppointment(date, time, person, doctorId, visitType, status));
+      return;
+    }
+  };
+
+  for (let person = featuredPeople.length; person < people.length; person += 1) {
+    const visits = random.int(1, 5);
+    const offsets = Array.from({ length: visits }, () => -random.int(4, 120)).sort((a, b) => a - b);
+    offsets.forEach((offset, i) => book(person, offset, 'completed', i === 0 ? 'first' : 'return'));
+    if (random.next() < 0.2) book(person, random.int(4, 30), 'confirmed', 'return');
+  }
+  return list;
+}
+
 export function resetDb(baseDate: string = today()): void {
   sequence = 0;
   seedDate = baseDate;
-  appointments = seedRows.map(([offset, time, person, doctorId, visitType, status, memo]) => {
-    const [name, phone] = people[person] ?? people[0];
-    return {
-      id: nextId(),
-      date: addDays(baseDate, offset),
-      time,
-      patientName: name,
-      phone,
-      doctorId,
-      doctorName: doctorName(doctorId),
-      visitType,
-      status,
-      ...(memo ? { memo } : {}),
-    };
-  });
+  appointments = [
+    ...seedRows.map(([offset, time, person, doctorId, visitType, status, memo]) =>
+      createAppointment(addDays(baseDate, offset), time, person, doctorId, visitType, status, memo),
+    ),
+    ...generateHistory(baseDate),
+  ];
   persist();
 }
 
@@ -166,7 +305,9 @@ export const db = {
   patients(baseDate: string = today()): Patient[] {
     const byPhone = new Map<string, Appointment[]>();
     for (const a of appointments) {
-      byPhone.set(a.phone, [...(byPhone.get(a.phone) ?? []), a]);
+      const list = byPhone.get(a.phone);
+      if (list) list.push(a);
+      else byPhone.set(a.phone, [a]);
     }
     return [...byPhone.entries()]
       .map(([phone, list]) => {

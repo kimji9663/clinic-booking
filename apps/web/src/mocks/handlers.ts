@@ -6,6 +6,7 @@ import {
   isAllowedTransition,
   type Appointment,
 } from '../domain/appointment';
+import { PATIENT_PAGE_SIZE, type PatientPage } from '../domain/patient';
 import { db, doctors, nextId } from './db';
 
 const UpdateStatusSchema = z.object({ status: z.enum(appointmentStatuses) });
@@ -84,8 +85,24 @@ export const handlers = [
     return HttpResponse.json(doctors);
   }),
 
-  http.get('/api/patients', async () => {
+  // 커서 기반 페이지네이션: ?cursor=0&limit=30 → { items, nextCursor, total }
+  http.get('/api/patients', async ({ request }) => {
     await delay();
-    return HttpResponse.json(db.patients());
+    const url = new URL(request.url);
+    const cursor = Number(url.searchParams.get('cursor') ?? 0);
+    const limit = Number(url.searchParams.get('limit') ?? PATIENT_PAGE_SIZE);
+    if (!Number.isInteger(cursor) || cursor < 0 || !Number.isInteger(limit) || limit < 1) {
+      return error('잘못된 페이지 요청입니다.', 400);
+    }
+
+    const all = db.patients();
+    const items = all.slice(cursor, cursor + Math.min(limit, 100));
+    const next = cursor + items.length;
+    const page: PatientPage = {
+      items,
+      nextCursor: next < all.length ? next : null,
+      total: all.length,
+    };
+    return HttpResponse.json(page);
   }),
 ];

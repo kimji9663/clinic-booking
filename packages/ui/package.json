@@ -11,6 +11,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@clinic/theme": "*"
+    "@clinic/theme": "*",
+    "@tanstack/react-virtual": "^3.14.26"
   }
 }

@@ -52,6 +52,29 @@ test.describe('예약 등록', () => {
   });
 });
 
+test.describe('환자 목록 (가상화 + 무한 스크롤)', () => {
+  test('페이지를 스크롤하면 150명까지 이어서 불러오고, DOM 에는 일부 행만 있다', async ({
+    page,
+  }) => {
+    await page.goto('/patients');
+    const table = page.locator('main');
+    const status = page.getByRole('status').filter({ hasText: '전체 150건' });
+    await expect(status).toHaveText('전체 150건 중 30건 표시');
+
+    // 페이지 전체 스크롤: 키보드 End 키로 문서 끝까지 이동할 때마다 다음 페이지를 불러온다
+    await expect(async () => {
+      await page.keyboard.press('End');
+      await expect(status).toHaveText('전체 150건 중 150건 표시', { timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+
+    // 마지막 페이지가 붙은 뒤 한 번 더 끝으로 이동하면 150번째 항목이 보인다
+    // (데스크톱은 표 행, 모바일은 카드 목록 — 둘 다 data-index 를 가진다)
+    await page.keyboard.press('End');
+    await expect(table.locator('[data-index="149"]')).toBeInViewport();
+    expect(await table.locator('[data-index]').count()).toBeLessThan(60);
+  });
+});
+
 test.describe('접근성 (axe, WCAG 2 A/AA)', () => {
   for (const brand of brandIds) {
     for (const mode of ['light', 'dark'] as const) {

@@ -1,7 +1,7 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '../test/renderApp';
-import { mockDesktopViewport } from '../test/viewport';
+import { mockDesktopViewport, mockElementSize, scrollWindowTo } from '../test/viewport';
 
 beforeEach(() => mockDesktopViewport());
 afterEach(() => vi.unstubAllGlobals());
@@ -99,10 +99,39 @@ describe('예약 관리', () => {
 });
 
 describe('환자', () => {
-  it('예약 이력으로 집계한 환자 목록을 마스킹해서 보여준다', async () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('150명 중 첫 페이지만 불러오고, 화면에 보이는 행만 그린다', async () => {
+    mockElementSize();
     renderApp('/patients');
 
-    const table = await screen.findByRole('table', { name: /환자 10명/ });
-    expect(within(table).getByText('010-****-4410')).toBeInTheDocument();
+    const table = await screen.findByRole('table', { name: '환자 150명' });
+    expect(table).toHaveAttribute('aria-rowcount', '151');
+    expect(screen.getByRole('status')).toHaveTextContent('전체 150건 중 30건 표시');
+    // 600px / 50px = 12행 + overscan 8 → 30행 전체가 아니라 일부만 DOM 에 있다
+    const rendered = within(table).getAllByRole('row').length - 1;
+    expect(rendered).toBeLessThan(30);
+    // 연락처는 마스킹
+    expect(within(table).getAllByText(/^010-\*{4}-\d{4}$/).length).toBeGreaterThan(0);
+  });
+
+  it('페이지를 끝까지 스크롤하면 다음 페이지를 이어서 불러온다 (무한 스크롤)', async () => {
+    mockElementSize();
+    renderApp('/patients');
+    await screen.findByRole('table', { name: '환자 150명' });
+    // 페이지 전체 스크롤 방식이라 별도 스크롤 영역이 없다
+    expect(screen.queryByRole('region', { name: '환자 150명' })).not.toBeInTheDocument();
+
+    for (const loaded of [60, 90, 120, 150]) {
+      // 지금까지 불러온 목록의 맨 아래(불러오는 중 행이 보이는 위치)까지 스크롤
+      const previous = loaded - 30;
+      const bottom = (previous + 1) * 50 - 600;
+      act(() => scrollWindowTo(bottom));
+      await waitFor(() =>
+        expect(screen.getByRole('status')).toHaveTextContent(`전체 150건 중 ${loaded}건 표시`),
+      );
+    }
+    // 마지막 페이지 이후에는 "불러오는 중" 행이 없다
+    expect(screen.queryByText('불러오는 중…')).not.toBeInTheDocument();
   });
 });

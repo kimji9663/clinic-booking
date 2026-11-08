@@ -1,7 +1,6 @@
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Paper from '@mui/material/Paper';
-import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -15,24 +14,9 @@ import { useTheme } from '@mui/material/styles';
 import type { ReactNode } from 'react';
 import { visuallyHidden } from '../../a11y';
 import { EmptyState } from '../EmptyState/EmptyState';
+import { TableSkeleton, renderCell, type Column } from './column';
 
-type StringKey<T> = Extract<keyof T, string>;
-
-/**
- * 컬럼 정의. key 에 따라 render 의 value 타입이 자동으로 좁혀진다.
- * 예) { key: 'status', render: (status) => ... } 에서 status 는 T['status'] 타입.
- */
-export type Column<T> = {
-  [K in StringKey<T>]-?: {
-    key: K;
-    header: string;
-    align?: 'left' | 'center' | 'right';
-    width?: number | string;
-    render?: (value: T[K], row: T) => ReactNode;
-    /** 모바일 카드 보기에서 숨김 */
-    hideOnMobile?: boolean;
-  };
-}[StringKey<T>];
+export type { Column } from './column';
 
 export interface DataTableProps<T> {
   /** 표 제목. 스크린리더용 <caption> 으로도 사용된다. */
@@ -44,20 +28,6 @@ export interface DataTableProps<T> {
   emptyState?: ReactNode;
   /** true 이면 스켈레톤을 보여주고 aria-busy 로 로딩 중임을 알린다 */
   loading?: boolean;
-}
-
-const SKELETON_ROWS = 4;
-
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  return String(value);
-}
-
-function renderCell<T>(column: Column<T>, row: T): ReactNode {
-  const value = row[column.key];
-  if (!column.render) return formatValue(value);
-  // Column<T> 는 key별 유니언이라 render 인자 타입이 교차된다. 공개 API의 타입 안전성은 Column<T> 가 보장한다.
-  return (column.render as (value: unknown, row: T) => ReactNode)(value, row);
 }
 
 /**
@@ -77,18 +47,7 @@ export function DataTable<T>({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  if (loading) {
-    return (
-      <Paper variant="outlined" aria-busy="true" sx={{ p: 2 }}>
-        <span style={visuallyHidden}>{caption} 불러오는 중</span>
-        <Stack spacing={1.5} aria-hidden="true">
-          {Array.from({ length: SKELETON_ROWS }, (_, i) => (
-            <Skeleton key={i} variant="rounded" height={36} />
-          ))}
-        </Stack>
-      </Paper>
-    );
-  }
+  if (loading) return <TableSkeleton caption={caption} />;
 
   if (rows.length === 0) {
     return (

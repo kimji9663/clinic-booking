@@ -3,12 +3,17 @@ export { toneColor, type Tone } from './tone';
 
 export {
   AppShell,
+  APP_HEADER_HEIGHT_VAR,
   MAIN_CONTENT_ID,
   type AppShellProps,
   type NavItem,
 } from './components/AppShell/AppShell';
 export { ConfirmDialog, type ConfirmDialogProps } from './components/ConfirmDialog/ConfirmDialog';
 export { DataTable, type Column, type DataTableProps } from './components/DataTable/DataTable';
+export {
+  VirtualDataTable,
+  type VirtualDataTableProps,
+} from './components/VirtualDataTable/VirtualDataTable';
 export { EmptyState, type EmptyStateProps } from './components/EmptyState/EmptyState';
 export { FormDialog, type FormDialogProps } from './components/FormDialog/FormDialog';
 export {
