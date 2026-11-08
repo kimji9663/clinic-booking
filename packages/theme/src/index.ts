@@ -1,7 +1,14 @@
 import './augment';
 
 export { brands } from './brands';
-export { createBrandTheme } from './createBrandTheme';
+export {
+  COLOR_SCHEME_ATTRIBUTE,
+  CSS_VAR_PREFIX,
+  createBrandScheme,
+  createBrandTheme,
+  type BrandScheme,
+  type BrandThemeExtras,
+} from './createBrandTheme';
 export {
   DARK_TEXT,
   LIGHT_TEXT,

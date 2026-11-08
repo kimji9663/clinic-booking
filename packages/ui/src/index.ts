@@ -1,4 +1,5 @@
 export { visuallyHidden } from './a11y';
+export { vars } from './palette';
 export { toneColor, type Tone } from './tone';
 
 export {
@@ -9,6 +10,7 @@ export {
   type NavItem,
 } from './components/AppShell/AppShell';
 export { ConfirmDialog, type ConfirmDialogProps } from './components/ConfirmDialog/ConfirmDialog';
+export { Combobox, type ComboboxProps } from './components/Combobox/Combobox';
 export { DataTable, type Column, type DataTableProps } from './components/DataTable/DataTable';
 export {
   VirtualDataTable,
@@ -24,6 +26,7 @@ export {
 } from './components/Toast/ToastProvider';
 export { PageHeader, type PageHeaderProps } from './components/PageHeader/PageHeader';
 export { StatCard, type StatCardProps } from './components/StatCard/StatCard';
+export { Tabs, type TabItem, type TabsProps } from './components/Tabs/Tabs';
 export {
   StatusBadge,
   type StatusBadgeProps,

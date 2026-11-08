@@ -1,4 +1,10 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { z } from 'zod';
 import {
   AppointmentSchema,
@@ -27,6 +33,7 @@ export const queryKeys = {
   patients: ['patients'] as const,
   patientPages: (pageSize: number) => ['patients', 'pages', pageSize] as const,
   patientDetail: (id: string) => ['patients', 'detail', id] as const,
+  patientSearch: (q: string) => ['patients', 'search', q] as const,
 };
 
 function toSearch(filters: AppointmentFilters): string {
@@ -135,5 +142,25 @@ export function useUpdatePatientMemo(id: string) {
       if (context?.previous) queryClient.setQueryData(key, context.previous);
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  });
+}
+
+export const PATIENT_SEARCH_LIMIT = 8;
+
+/** 예약 폼 자동완성용 환자 검색. 이전 결과를 유지해 입력 중 목록이 깜빡이지 않게 한다. */
+export function usePatientSearch(query: string) {
+  const q = query.trim();
+  return useQuery({
+    queryKey: queryKeys.patientSearch(q),
+    queryFn: ({ signal }) =>
+      request(
+        PatientPageSchema,
+        `/api/patients?q=${encodeURIComponent(q)}&limit=${PATIENT_SEARCH_LIMIT}`,
+        { signal },
+      ),
+    enabled: q.length > 0,
+    placeholderData: keepPreviousData,
+    staleTime: 10_000,
+    select: (page) => page.items,
   });
 }

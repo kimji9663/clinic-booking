@@ -28,7 +28,7 @@
 clinic-booking/
 ├─ packages/
 │  ├─ theme/   @clinic/theme — 브랜드 토큰, createBrandTheme, 명도 대비 보정, MUI 타입 확장
-│  └─ ui/      @clinic/ui    — 공통 컴포넌트 (AppShell, DataTable, VirtualDataTable, FormDialog, ConfirmDialog, Toast ...)
+│  └─ ui/      @clinic/ui    — 공통 컴포넌트 (AppShell, DataTable, VirtualDataTable, Tabs, Combobox, FormDialog, ConfirmDialog, Toast ...)
 ├─ apps/
 │  └─ web/     @clinic/web   — 병원 예약 관리 앱 (Vite)
 │     ├─ src/app/       라우트(코드 스플리팅), Provider, 레이아웃
@@ -74,12 +74,16 @@ npm run storybook      # http://localhost:6006
 - 새 고객사 추가 = `tokens.ts`의 `brandIds`에 ID 추가 + `brands.ts`에 토큰 1개 작성. **화면 코드는 수정 없음.**
 - palette / typography / shape / spacing / components(defaultProps, styleOverrides, variants) 커스터마이징
 - 커스텀 Button variant `soft`, Typography variant `label`, `theme.brand` 필드를 **module augmentation**으로 타입 안전하게 추가
+- **CSS 변수 테마**(`cssVariables` + `colorSchemes`): 라이트/다크 색 구성을 한 테마에 담아 `--clinic-palette-*` 변수로 내보냄
+  - 모드를 바꾸면 테마를 다시 만들거나 컴포넌트 스타일을 다시 계산하지 않고 `<html data-color-scheme>` 속성만 바뀜
+  - 모드는 MUI 가 저장(`clinic-booking.mode`)하고 처음엔 OS 설정(system)을 따름, 전환 중 transition 을 꺼서 한 번에 바뀜
+  - 공통 컴포넌트 스타일은 `vars(theme)`로 CSS 변수를 참조 (실제 색을 쓰면 다크 모드로 안 바뀜), 모드별로 다른 값은 `theme.applyStyles('dark', …)`
 
 ### 2. 접근성 자동 보정
 
 - `ensureContrast()`: 브랜드 색이 WCAG AA(4.5:1) 대비 미달이면 기준을 만족할 때까지 명도를 조정
 - 색이 **실제로 놓이는 모든 곳**(색 배경 위 글자, 카드·페이지 배경 위 글자, soft 버튼의 반투명 배경 위 글자)을 기준으로 보정
-- 라이트·다크 모드 × 고객사 3곳 × 색상 6종을 단위 테스트로 검증
+- 라이트·다크 모드 × 등록된 모든 고객사 × 색상 6종을 단위 테스트로 검증 (고객사를 추가하면 자동 포함)
 - MUI `getContrastRatio`는 소수점 2자리 반올림이라 4.49를 4.5로 통과시킨다 → E2E(axe)에서 발견해 정확한 계산으로 교체
 
 ### 3. 데이터 흐름
@@ -131,6 +135,8 @@ npm run storybook      # http://localhost:6006
   - `scrollMode="window"`: 페이지 전체 스크롤을 따라 가상화(`useWindowVirtualizer`), 표 머리글은 AppShell 상단 바 아래(`--app-header-height`)에 고정 — 환자 페이지에서 사용
   - `scrollMode="container"`(기본): 고정 높이 스크롤 영역, `role="region"` + `tabIndex=0` 으로 키보드(PageDown/End) 스크롤
   - 불러온 건수는 `role="status"` 로 안내
+- `Tabs` (WAI-ARIA Tabs 패턴): `tablist`/`tab`/`tabpanel`, `aria-selected`·`aria-controls`, **roving tabindex**(탭 묶음은 Tab 한 번, 안에서는 ←/→·Home/End), 자동/수동 선택 모드 — 환자 프로필 진료 이력
+- `Combobox` (WAI-ARIA Combobox · List Autocomplete): 포커스는 입력창에 두고 ↑/↓ 로 고르면 `aria-activedescendant` 갱신, Enter 선택(폼 제출 아님), Esc 는 목록만 닫음(대화상자는 유지), 결과 수는 `aria-live` — 예약 폼 환자 검색(이름·연락처 뒷자리, 결과는 마스킹)
 - 본문 바로가기, 랜드마크, `aria-current`, 표 `caption`, 키보드 포커스 링
 - 페이지 이동 시 본문으로 포커스 이동 + 문서 제목 갱신 (스크린리더가 새 페이지를 인지)
 - 행마다 반복되는 버튼은 `"14:00 윤*윤 승인"`처럼 구분되는 접근 가능한 이름 제공
@@ -138,24 +144,25 @@ npm run storybook      # http://localhost:6006
 - 위험한 작업(예약 취소)은 확인 대화상자 + 기본 포커스를 "닫기"에 둠
 - 개인정보 마스킹: 이름 `김*준`, 연락처 `010-****-4410`
 - Playwright: Chromium · Firefox · WebKit · 모바일(iPhone, Pixel)에서 E2E
-  - axe 검사: 고객사 3곳 × 라이트/다크 × 4개 페이지
+  - axe 검사: 등록된 모든 고객사 × 라이트/다크 × 5개 페이지 + 알림 패널·자동완성 목록이 열린 상태
   - Firefox 는 기능 테스트만 실행 (Playwright Firefox + MSW 서비스 워커 환경에서 axe 실행 시 페이지 크래시)
 
 ## 테스트 현황
 
-| 종류     | 도구                     | 내용                                                                                                                                                                                                         |
-| -------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 단위     | Vitest                   | 명도 대비 보정, 테마(모드별), 마스킹, 날짜·전화번호 포맷, SSE 파서(조각 경계·CRLF·retry)                                                                                                                     |
-| 컴포넌트 | Vitest + Testing Library | DataTable, VirtualDataTable(가상화 범위·무한 스크롤 호출), AppShell, ConfirmDialog, Toast, StatusBadge                                                                                                       |
-| 통합     | Vitest + MSW             | 라우팅·포커스 이동, 브랜드/다크 모드 전환, 필터-URL 동기화, 예약 승인·취소, 예약 등록 폼(검증·자동 하이픈·중복 시간·409 처리), 환자 프로필(메모 낙관적 업데이트·롤백), SSE 재연결·Last-Event-ID, 실시간 알림 |
-| E2E      | Playwright + axe         | 5개 브라우저 환경, 예약 등록·무한 스크롤·프로필 메모·실시간 알림 흐름, 전체 페이지·알림 패널 접근성                                                                                                          |
+| 종류     | 도구                     | 내용                                                                                                                                                                                                                                          |
+| -------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 단위     | Vitest                   | 명도 대비 보정, 테마(모드별), 마스킹, 날짜·전화번호 포맷, SSE 파서(조각 경계·CRLF·retry)                                                                                                                                                      |
+| 컴포넌트 | Vitest + Testing Library | DataTable, VirtualDataTable(가상화 범위·무한 스크롤 호출), Tabs(roving tabindex·키보드), Combobox(activedescendant·Esc 전파), AppShell, ConfirmDialog, Toast, StatusBadge                                                                     |
+| 통합     | Vitest + MSW             | 라우팅·포커스 이동, 브랜드/다크 모드 전환, 필터-URL 동기화, 예약 승인·취소, 예약 등록 폼(검증·자동 하이픈·중복 시간·409 처리), 환자 프로필(메모 낙관적 업데이트·롤백·진료 이력 탭), 환자 검색 자동완성, SSE 재연결·Last-Event-ID, 실시간 알림 |
+| E2E      | Playwright + axe         | 5개 브라우저 환경, 예약 등록(자동완성 키보드 선택)·무한 스크롤·프로필 메모·실시간 알림 흐름, 전체 페이지·알림 패널·자동완성 접근성                                                                                                            |
 
 ## 다음 단계
 
 - [x] React Router로 예약 관리 / 진료 일정 / 환자 페이지 추가 (+ 라우트 단위 코드 스플리팅)
 - [x] TanStack Query + MSW로 목업 API 연결
 - [x] 예약 등록 폼 (react-hook-form + zod) / 확인 Dialog / Toast
-- [x] 다크 모드
+- [x] 다크 모드 → CSS 변수 테마로 전환 (모드 변경 시 테마 재생성 없음)
+- [x] 접근성 패턴 컴포넌트: Tabs, Combobox
 - [x] 환자 150명 대용량 목록: TanStack Virtual 가상화 + 무한 스크롤
 - [x] 환자 프로필 (진료 이력, 메모 낙관적 업데이트, 프로필에서 예약 등록)
 - [x] 실시간 알림 (SSE: 재연결·Last-Event-ID, 토스트·알림 배지)

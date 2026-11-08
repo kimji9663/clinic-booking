@@ -15,6 +15,7 @@ import { useTheme } from '@mui/material/styles';
 import { useVirtualizer, useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { visuallyHidden } from '../../a11y';
+import { vars } from '../../palette';
 import { TableSkeleton, renderCell, type Column } from '../DataTable/column';
 import { APP_HEADER_HEIGHT_VAR } from '../AppShell/AppShell';
 import { EmptyState } from '../EmptyState/EmptyState';
@@ -199,7 +200,7 @@ export function VirtualDataTable<T>({
     ? {}
     : ({ ref: scrollRef, role: 'region', 'aria-labelledby': titleId, tabIndex: 0 } as const);
   const focusRing = (offset: number) => ({
-    outline: `3px solid ${theme.palette.primary.main}`,
+    outline: `3px solid ${vars(theme).primary.main}`,
     outlineOffset: offset,
   });
   const scrollSx = isWindow

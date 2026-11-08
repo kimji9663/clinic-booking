@@ -8,5 +8,10 @@ export function renderWithTheme(
   { brandId = 'sky-pediatrics', ...options }: RenderOptions & { brandId?: BrandId } = {},
 ) {
   const theme = createBrandTheme(brands[brandId]);
-  return render(<ThemeProvider theme={theme}>{ui}</ThemeProvider>, options);
+  return render(
+    <ThemeProvider theme={theme} storageManager={null}>
+      {ui}
+    </ThemeProvider>,
+    options,
+  );
 }

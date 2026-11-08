@@ -1,17 +1,16 @@
 import { DEFAULT_BRAND_ID, brands, createBrandTheme, isBrandId, type BrandId } from '@clinic/theme';
 import CssBaseline from '@mui/material/CssBaseline';
-import { ThemeProvider, createTheme, type PaletteMode } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { routerLinkThemeOptions } from '../app/LinkBehavior';
 
 const BRAND_KEY = 'clinic-booking.brand';
-const MODE_KEY = 'clinic-booking.mode';
+/** 화면 모드(light/dark/system) 저장 키 — MUI 가 직접 읽고 쓴다 */
+export const MODE_KEY = 'clinic-booking.mode';
 
 interface BrandContextValue {
   brandId: BrandId;
   setBrandId: (id: BrandId) => void;
-  mode: PaletteMode;
-  setMode: (mode: PaletteMode) => void;
 }
 
 const BrandContext = createContext<BrandContextValue | null>(null);
@@ -40,29 +39,30 @@ function readInitialBrand(): BrandId {
   return isBrandId(saved) ? saved : DEFAULT_BRAND_ID;
 }
 
-/** localStorage → OS 설정(prefers-color-scheme) 순서로 화면 모드를 결정 */
-function readInitialMode(): PaletteMode {
-  const saved = safeGet(MODE_KEY);
-  if (saved === 'light' || saved === 'dark') return saved;
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
+/**
+ * 고객사 테마 + 화면 모드.
+ * - 테마는 고객사가 바뀔 때만 새로 만든다. light/dark 색은 CSS 변수로 함께 들어 있다.
+ * - 화면 모드는 MUI 가 관리한다: 저장값 → OS 설정(system) 순서, 바꾸면 <html data-color-scheme> 만 바뀐다.
+ *   전환 중 CSS transition 을 꺼서 색이 한 번에 바뀌게 한다.
+ */
 export function BrandProvider({ children }: { children: ReactNode }) {
   const [brandId, setBrandId] = useState<BrandId>(readInitialBrand);
-  const [mode, setMode] = useState<PaletteMode>(readInitialMode);
-
   useEffect(() => safeSet(BRAND_KEY, brandId), [brandId]);
-  useEffect(() => safeSet(MODE_KEY, mode), [mode]);
 
   const theme = useMemo(
-    () => createTheme(createBrandTheme(brands[brandId], mode), routerLinkThemeOptions),
-    [brandId, mode],
+    () => createBrandTheme(brands[brandId], { components: routerLinkThemeOptions.components }),
+    [brandId],
   );
-  const value = useMemo(() => ({ brandId, setBrandId, mode, setMode }), [brandId, mode]);
+  const value = useMemo(() => ({ brandId, setBrandId }), [brandId]);
 
   return (
     <BrandContext.Provider value={value}>
-      <ThemeProvider theme={theme}>
+      <ThemeProvider
+        theme={theme}
+        defaultMode="system"
+        modeStorageKey={MODE_KEY}
+        disableTransitionOnChange
+      >
         <CssBaseline enableColorScheme />
         {children}
       </ThemeProvider>

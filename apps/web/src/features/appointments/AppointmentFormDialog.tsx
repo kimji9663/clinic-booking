@@ -1,4 +1,4 @@
-import { FormDialog, useToast } from '@clinic/ui';
+import { Combobox, FormDialog, useToast } from '@clinic/ui';
 import { zodResolver } from '@hookform/resolvers/zod';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -7,10 +7,16 @@ import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
+import Typography from '@mui/material/Typography';
 import { useEffect, useId } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { ApiError } from '../../api/client';
-import { useAppointments, useCreateAppointment, useDoctors } from '../../api/clinic';
+import {
+  useAppointments,
+  useCreateAppointment,
+  useDoctors,
+  usePatientSearch,
+} from '../../api/clinic';
 import { FormTextField } from '../../components/FormTextField';
 import {
   CreateAppointmentSchema,
@@ -20,7 +26,8 @@ import {
   type CreateAppointmentInput,
 } from '../../domain/appointment';
 import { today } from '../../utils/date';
-import { maskName } from '../../utils/maskName';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { maskName, maskPhone } from '../../utils/maskName';
 import { formatPhoneInput } from '../../utils/phone';
 
 export interface AppointmentFormDialogProps {
@@ -57,10 +64,15 @@ export function AppointmentFormDialog({
   const createAppointment = useCreateAppointment();
   const { data: doctors = [] } = useDoctors();
 
-  const { control, handleSubmit, reset, setError } = useForm<CreateAppointmentInput>({
+  const { control, handleSubmit, reset, setError, setValue } = useForm<CreateAppointmentInput>({
     resolver: zodResolver(CreateAppointmentSchema),
     defaultValues: emptyForm(defaultDate, defaultPatient),
   });
+
+  // 환자 이름 자동완성: 입력이 잠시 멈추면 검색
+  const typedName = useWatch({ control, name: 'patientName' });
+  const searchQuery = useDebouncedValue(open ? typedName : '');
+  const { data: patientOptions = [], isFetching: searching } = usePatientSearch(searchQuery);
 
   // 열 때마다 초기화 (환자 프로필에서 열면 이름·연락처는 채운 상태)
   const patientName = defaultPatient?.patientName;
@@ -110,13 +122,45 @@ export function AppointmentFormDialog({
     >
       <Grid container spacing={2} sx={{ pt: 1 }}>
         <Grid size={{ xs: 12, sm: 6 }}>
-          <FormTextField
+          {/* 기존 환자는 검색해서 고르면 연락처까지 채워진다. 목록에 없으면 새 환자로 그대로 입력 */}
+          <Controller
             control={control}
             name="patientName"
-            label="환자 이름"
-            required
-            fullWidth
-            autoComplete="off"
+            render={({ field, fieldState }) => (
+              <Combobox
+                label="환자 이름"
+                name={field.name}
+                inputValue={field.value}
+                onInputChange={field.onChange}
+                onBlur={field.onBlur}
+                inputRef={field.ref}
+                required
+                fullWidth
+                error={Boolean(fieldState.error)}
+                helperText={
+                  fieldState.error?.message ?? '기존 환자는 이름이나 연락처 뒷자리로 검색'
+                }
+                options={patientOptions}
+                loading={searching}
+                minChars={1}
+                noOptionsText="일치하는 환자가 없습니다 — 새 환자로 등록됩니다"
+                getOptionKey={(p) => p.id}
+                renderOption={(p) => (
+                  <>
+                    <Typography component="span" sx={{ fontWeight: 700 }}>
+                      {maskName(p.name)}
+                    </Typography>
+                    <Typography component="span" color="text.secondary" sx={{ ml: 1 }}>
+                      {maskPhone(p.phone)} · 방문 {p.visitCount}회
+                    </Typography>
+                  </>
+                )}
+                onSelect={(p) => {
+                  setValue('patientName', p.name, { shouldValidate: true });
+                  setValue('phone', p.phone, { shouldValidate: true });
+                }}
+              />
+            )}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>

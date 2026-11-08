@@ -13,6 +13,7 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { styled, useTheme } from '@mui/material/styles';
 import { useId, useState, type ReactNode } from 'react';
+import { vars } from '../../palette';
 
 export interface NavItem {
   id: string;
@@ -63,8 +64,8 @@ const SkipLink = styled('a')(({ theme }) => ({
   zIndex: theme.zIndex.tooltip,
   padding: theme.spacing(1, 2),
   borderRadius: theme.shape.borderRadius,
-  backgroundColor: theme.palette.primary.main,
-  color: theme.palette.primary.contrastText,
+  backgroundColor: vars(theme).primary.main,
+  color: vars(theme).primary.contrastText,
   fontWeight: 600,
   textDecoration: 'none',
   '&:focus': { top: theme.spacing(1) },

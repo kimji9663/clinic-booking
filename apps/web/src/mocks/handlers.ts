@@ -91,6 +91,7 @@ export const handlers = [
   }),
 
   // 커서 기반 페이지네이션: ?cursor=0&limit=30 → { items, nextCursor, total }
+  // 검색: ?q=김민 (이름 일부) 또는 ?q=4410 (연락처 숫자 3자리 이상)
   http.get('/api/patients', async ({ request }) => {
     await delay();
     const url = new URL(request.url);
@@ -100,7 +101,16 @@ export const handlers = [
       return error('잘못된 페이지 요청입니다.', 400);
     }
 
-    const all = db.patients();
+    const q = url.searchParams.get('q')?.trim() ?? '';
+    const digits = q.replace(/\D/g, '');
+    const all = db
+      .patients()
+      .filter(
+        (p) =>
+          !q ||
+          p.name.includes(q) ||
+          (digits.length >= 3 && p.phone.replaceAll('-', '').includes(digits)),
+      );
     const items = all.slice(cursor, cursor + Math.min(limit, 100));
     const next = cursor + items.length;
     const page: PatientPage = {

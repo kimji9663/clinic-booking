@@ -1,4 +1,4 @@
-import { EmptyState, PageHeader, StatusBadge, useToast, visuallyHidden } from '@clinic/ui';
+import { EmptyState, PageHeader, StatusBadge, Tabs, useToast, visuallyHidden } from '@clinic/ui';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditNoteIcon from '@mui/icons-material/EditNote';
@@ -172,21 +172,9 @@ function MemoEditor({ patient }: { patient: PatientDetail }) {
   );
 }
 
-function HistoryList({
-  title,
-  items,
-  empty,
-}: {
-  title: string;
-  items: readonly Appointment[];
-  empty: string;
-}) {
-  const headingId = useId();
+function HistoryList({ items, empty }: { items: readonly Appointment[]; empty: string }) {
   return (
-    <Box component="section" aria-labelledby={headingId}>
-      <Typography id={headingId} variant="subtitle1" component="h3" sx={{ fontWeight: 700 }}>
-        {title} ({items.length})
-      </Typography>
+    <>
       {items.length === 0 ? (
         <Typography color="text.secondary" sx={{ py: 1.5 }}>
           {empty}
@@ -208,7 +196,7 @@ function HistoryList({
           ))}
         </List>
       )}
-    </Box>
+    </>
   );
 }
 
@@ -290,18 +278,29 @@ export function PatientProfilePage() {
           </Grid>
           <Grid size={{ xs: 12, md: 8 }}>
             <SectionCard title="진료 이력">
-              <Stack spacing={3}>
-                <HistoryList
-                  title="예정된 예약"
-                  items={history.upcoming}
-                  empty="예정된 예약이 없습니다."
-                />
-                <HistoryList
-                  title="지난 이력"
-                  items={history.past}
-                  empty="지난 진료 이력이 없습니다."
-                />
-              </Stack>
+              <Tabs
+                label="진료 이력 구분"
+                // 예정된 예약이 없으면 지난 이력부터 보여 준다
+                defaultValue={history.upcoming.length > 0 ? 'upcoming' : 'past'}
+                items={[
+                  {
+                    value: 'upcoming',
+                    label: '예정된 예약',
+                    count: history.upcoming.length,
+                    content: (
+                      <HistoryList items={history.upcoming} empty="예정된 예약이 없습니다." />
+                    ),
+                  },
+                  {
+                    value: 'past',
+                    label: '지난 이력',
+                    count: history.past.length,
+                    content: (
+                      <HistoryList items={history.past} empty="지난 진료 이력이 없습니다." />
+                    ),
+                  },
+                ]}
+              />
             </SectionCard>
           </Grid>
         </Grid>

@@ -28,10 +28,28 @@ describe('환자 프로필', () => {
       within(screen.getByRole('region', { name: '메모' })).getByText(/페니실린/),
     ).toBeInTheDocument();
 
-    const upcoming = screen.getByRole('region', { name: /예정된 예약/ });
+    // 진료 이력은 탭으로 나뉜다: 예정된 예약이 있으면 그 탭이 먼저 선택된다
+    expect(screen.getByRole('tablist', { name: '진료 이력 구분' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '예정된 예약 1건' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    const upcoming = screen.getByRole('tabpanel', { name: '예정된 예약 1건' });
     expect(within(upcoming).getByText(/10:30 · 정도윤/)).toBeInTheDocument();
     expect(within(upcoming).getByText('예약 확정')).toBeInTheDocument();
     expect(screen.queryByText('이하준')).not.toBeInTheDocument();
+  });
+
+  it('진료 이력 탭은 화살표 키로 전환한다', async () => {
+    const { user } = renderApp(`/patients/${LEE}`);
+    const upcomingTab = await screen.findByRole('tab', { name: '예정된 예약 1건' });
+    await user.click(upcomingTab);
+    await user.keyboard('{ArrowRight}');
+
+    const pastTab = screen.getByRole('tab', { name: /^지난 이력 \d+건$/ });
+    expect(pastTab).toHaveFocus();
+    expect(pastTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('진료 완료');
   });
 
   it('메모를 수정하면 바로 반영되고 저장 완료를 알린다', async () => {
@@ -87,7 +105,7 @@ describe('환자 프로필', () => {
     await user.click(screen.getByRole('button', { name: '예약 등록' }));
 
     const dialog = await screen.findByRole('dialog', { name: '예약 등록' });
-    expect(within(dialog).getByRole('textbox', { name: '환자 이름' })).toHaveValue('김민준');
+    expect(within(dialog).getByRole('combobox', { name: '환자 이름' })).toHaveValue('김민준');
     expect(within(dialog).getByRole('textbox', { name: '연락처' })).toHaveValue('010-2381-4410');
   });
 

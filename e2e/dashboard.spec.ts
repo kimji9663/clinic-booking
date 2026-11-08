@@ -49,7 +49,7 @@ test.describe('예약 등록', () => {
     await page.getByRole('button', { name: '예약 등록' }).click();
     const dialog = page.getByRole('dialog', { name: '예약 등록' });
 
-    await dialog.getByRole('textbox', { name: '환자 이름' }).fill('홍길동');
+    await dialog.getByRole('combobox', { name: '환자 이름' }).fill('홍길동');
     await dialog.getByRole('textbox', { name: '연락처' }).fill('01055556666');
     await expect(dialog.getByRole('textbox', { name: '연락처' })).toHaveValue('010-5555-6666');
     await dialog.getByRole('combobox', { name: '담당의' }).click();
@@ -60,6 +60,34 @@ test.describe('예약 등록', () => {
 
     await expect(page.getByRole('status')).toContainText('홍*동 님의 예약이 등록되었습니다.');
     await expect(page.getByText('홍*동').first()).toBeVisible();
+  });
+
+  test('기존 환자를 자동완성에서 키보드로 골라 이름·연락처를 채운다', async ({
+    page,
+    browserName,
+  }) => {
+    await page.goto('/appointments');
+    await page.getByRole('button', { name: '예약 등록' }).click();
+    const dialog = page.getByRole('dialog', { name: '예약 등록' });
+    const name = dialog.getByRole('combobox', { name: '환자 이름' });
+
+    await name.pressSequentially('9021'); // 연락처 뒷자리로 검색
+    const listbox = dialog.getByRole('listbox', { name: '환자 이름 추천' });
+    await expect(listbox.getByRole('option')).toHaveCount(1);
+    await expect(name).toHaveAttribute('aria-expanded', 'true');
+    // 목록이 열린 상태(대화상자 안)도 접근성 규칙 검사
+    if (browserName !== 'firefox') await expectNoA11yViolations(page);
+
+    await page.keyboard.press('ArrowDown');
+    await expect(name).toHaveAttribute('aria-activedescendant', /.+/);
+    await page.keyboard.press('Enter');
+
+    await expect(name).toHaveValue('이하준');
+    await expect(dialog.getByRole('textbox', { name: '연락처' })).toHaveValue('010-3348-9021');
+    await expect(listbox).toBeHidden();
+    // Esc 는 목록이 닫힌 뒤에야 대화상자를 닫는다
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
   });
 });
 
