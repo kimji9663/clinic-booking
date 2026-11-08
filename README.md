@@ -5,6 +5,10 @@
 
 > 등장하는 병원·의료진·환자는 모두 가상입니다.
 
+- **데모**: https://kimji9663.github.io/clinic-booking/ (고객사 바꿔 보기: [바른치과](https://kimji9663.github.io/clinic-booking/?brand=barun-dental) · [온결피부과](https://kimji9663.github.io/clinic-booking/?brand=ongyeol-derma))
+- **Storybook**: https://kimji9663.github.io/clinic-booking/storybook/
+- 백엔드 없이 브라우저 안의 목업 API(MSW)로 동작하며, 변경한 데이터는 브라우저(localStorage)에만 저장됩니다.
+
 ## 가상 고객사
 
 | ID               | 병원           | 특징                                                                          |
@@ -50,6 +54,14 @@ npm run storybook      # http://localhost:6006
 | `npm run build`           | 앱 프로덕션 빌드                                         |
 | `npm run build-storybook` | Storybook 정적 빌드                                      |
 | `npm run e2e`             | Playwright (최초 1회 `npx playwright install` 필요)      |
+| `npm run build:pages`     | GitHub Pages 배포용 빌드 (앱 + `/storybook/`, 404.html)  |
+
+### 배포 (GitHub Pages)
+
+- `main` 에 푸시 → **CI**(lint·타입·단위 테스트·빌드·E2E 5개 브라우저) 통과 → **Deploy** 워크플로가 같은 커밋을 배포
+- 하위 경로(`/clinic-booking/`) 대응: Vite `base`(`BASE_PATH`), React Router `basename`, MSW 서비스 워커 경로를 `BASE_URL` 기준으로 지정
+- Pages 는 SPA 주소 재작성을 지원하지 않으므로 `index.html` 을 `404.html` 로 복사 → `/clinic-booking/patients` 에서 새로고침해도 앱이 뜨고 라우터가 이어받음
+- 저장소 설정: Settings → Pages → Source 를 **GitHub Actions** 로 지정
 
 ## 핵심 설계
 
@@ -145,4 +157,4 @@ npm run storybook      # http://localhost:6006
 - [x] 환자 프로필 (진료 이력, 메모 낙관적 업데이트, 프로필에서 예약 등록)
 - [x] 실시간 알림 (SSE: 재연결·Last-Event-ID, 토스트·알림 배지)
 - [ ] 공수 비교 지표: 신규 고객사 추가 시 변경 파일·라인 수 기록
-- [ ] 배포 (Vercel/Netlify) + Storybook 배포
+- [x] GitHub Pages 배포 (앱 + Storybook, CI 통과 후 자동 배포)

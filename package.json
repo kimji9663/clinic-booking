@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "npm run dev -w @clinic/web",
     "build": "npm run build -w @clinic/web",
+    "build:pages": "node scripts/build-pages.mjs",
     "preview": "npm run preview -w @clinic/web",
     "typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present",
     "lint": "eslint .",

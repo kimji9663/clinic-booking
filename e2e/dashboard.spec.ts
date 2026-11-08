@@ -77,10 +77,15 @@ test.describe('환자 목록 (가상화 + 무한 스크롤)', () => {
       await expect(status).toHaveText('전체 150건 중 150건 표시', { timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
 
-    // 마지막 페이지가 붙은 뒤 한 번 더 끝으로 이동하면 150번째 항목이 보인다
+    // 마지막 페이지가 붙은 뒤 끝으로 이동하면 150번째 항목이 보인다
     // (데스크톱은 표 행, 모바일은 카드 목록 — 둘 다 data-index 를 가진다)
-    await page.keyboard.press('End');
-    await expect(table.locator('[data-index="149"]')).toBeInViewport();
+    // 카드 높이는 그려진 뒤 실측해 보정되므로 전체 높이가 바뀔 수 있다 → 끝에 닿을 때까지 반복
+    // (모바일 WebKit 은 End 키 스크롤이 문서 끝에 못 미칠 때가 있어 직접 끝으로 이동도 함께 한다)
+    await expect(async () => {
+      await page.keyboard.press('End');
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await expect(table.locator('[data-index="149"]')).toBeInViewport({ timeout: 1_000 });
+    }).toPass({ timeout: 15_000 });
     expect(await table.locator('[data-index]').count()).toBeLessThan(60);
   });
 });
