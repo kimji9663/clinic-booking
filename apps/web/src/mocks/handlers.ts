@@ -12,6 +12,8 @@ import {
   type PatientDetail,
   type PatientPage,
 } from '../domain/patient';
+import { WEEKLY_STATS_WEEKS, weeklyVisits } from '../domain/stats';
+import { today } from '../utils/date';
 import { db, doctors, nextId } from './db';
 
 const UpdateStatusSchema = z.object({ status: z.enum(appointmentStatuses) });
@@ -83,6 +85,16 @@ export const handlers = [
     }
 
     return HttpResponse.json(db.update(current.id, { status: parsed.data.status }));
+  }),
+
+  // 주간 예약 통계: 오늘로 끝나는 7일 구간 weeks 개(기본 12), 초진·재진 건수 (취소 제외)
+  http.get('/api/stats/weekly-visits', async ({ request }) => {
+    await delay();
+    const weeks = Number(new URL(request.url).searchParams.get('weeks') ?? WEEKLY_STATS_WEEKS);
+    if (!Number.isInteger(weeks) || weeks < 1 || weeks > 52) {
+      return error('잘못된 기간입니다.', 400);
+    }
+    return HttpResponse.json(weeklyVisits(db.list(), today(), weeks));
   }),
 
   http.get('/api/doctors', async () => {

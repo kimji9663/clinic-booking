@@ -19,6 +19,7 @@ import {
   UpdatePatientMemoSchema,
   type PatientDetail,
 } from '../domain/patient';
+import { WEEKLY_STATS_WEEKS, WeeklyVisitsSchema } from '../domain/stats';
 import { request } from './client';
 
 export interface AppointmentFilters {
@@ -29,6 +30,8 @@ export interface AppointmentFilters {
 export const queryKeys = {
   appointments: ['appointments'] as const,
   appointmentList: (filters: AppointmentFilters) => ['appointments', filters] as const,
+  /** 'appointments' 아래에 두어 예약이 바뀌면(등록·상태 변경·실시간 알림) 함께 무효화된다 */
+  weeklyVisits: (weeks: number) => ['appointments', 'stats', 'weekly', weeks] as const,
   doctors: ['doctors'] as const,
   patients: ['patients'] as const,
   patientPages: (pageSize: number) => ['patients', 'pages', pageSize] as const,
@@ -48,6 +51,13 @@ export function useAppointments(filters: AppointmentFilters) {
   return useQuery({
     queryKey: queryKeys.appointmentList(filters),
     queryFn: () => request(z.array(AppointmentSchema), `/api/appointments${toSearch(filters)}`),
+  });
+}
+
+export function useWeeklyVisits(weeks: number = WEEKLY_STATS_WEEKS) {
+  return useQuery({
+    queryKey: queryKeys.weeklyVisits(weeks),
+    queryFn: () => request(WeeklyVisitsSchema, `/api/stats/weekly-visits?weeks=${weeks}`),
   });
 }
 

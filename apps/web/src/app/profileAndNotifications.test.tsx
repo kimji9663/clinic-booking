@@ -144,7 +144,12 @@ describe('실시간 알림 (SSE)', () => {
       emitClinicEvent('appointment.requested');
     });
 
-    expect(await screen.findByRole('status')).toHaveTextContent(/새 예약 요청 — /);
+    // 대시보드에는 차트의 키보드 안내용 status 영역도 있으므로 토스트 내용으로 찾는다
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('status').some((s) => /새 예약 요청 — /.test(s.textContent ?? '')),
+      ).toBe(true),
+    );
     expect(screen.getByRole('button', { name: '알림, 읽지 않음 1개' })).toBeInTheDocument();
     // 오늘 예약 요청이면 대시보드 목록이 자동으로 늘어난다 (다음 날로 잡히는 경우 제외)
     await waitFor(() =>

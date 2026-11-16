@@ -204,7 +204,8 @@ test.describe('실시간 알림 (SSE)', () => {
       return (await response.json()) as { patientId: string };
     });
 
-    await expect(page.getByRole('status')).toContainText('새 예약 요청');
+    // 대시보드에는 차트의 키보드 안내용 status 영역도 있어 토스트 내용으로 좁힌다
+    await expect(page.getByRole('status').filter({ hasText: '새 예약 요청' })).toBeVisible();
     await expect(page.getByRole('button', { name: '알림, 읽지 않음 1개' })).toBeVisible();
 
     await page.getByRole('button', { name: '알림, 읽지 않음 1개' }).click();

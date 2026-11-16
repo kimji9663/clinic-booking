@@ -5,13 +5,16 @@
   "type": "module",
   "description": "병원 예약 서비스 공통 컴포넌트 라이브러리 (MUI + Emotion)",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./charts": "./src/charts.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@clinic/theme": "*",
-    "@tanstack/react-virtual": "^3.14.26"
+    "@tanstack/react-virtual": "^3.14.26",
+    "d3-scale": "^4.0.3",
+    "d3-shape": "^3.2.1"
   }
 }

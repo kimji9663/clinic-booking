@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '../test/renderApp';
 import { mockDesktopViewport, mockElementSize, scrollWindowTo } from '../test/viewport';
+import { today } from '../utils/date';
 
 beforeEach(() => mockDesktopViewport());
 afterEach(() => vi.unstubAllGlobals());
@@ -17,6 +18,19 @@ describe('대시보드', () => {
     const table = await screen.findByRole('table', { name: '오늘의 예약 목록' });
     expect(within(table).getByText('김*준')).toBeInTheDocument();
     expect(screen.queryByText('김민준')).not.toBeInTheDocument();
+  });
+
+  it('주간 예약 추이 차트: 12주 데이터를 표로도 제공하고 마지막 구간은 오늘로 끝난다', async () => {
+    renderApp('/');
+
+    const table = await screen.findByRole('table', { name: '주간 예약 추이' });
+    const rows = within(table).getAllByRole('row');
+    expect(rows).toHaveLength(13); // 머리글 + 12주
+    const [, month, day] = today().split('-').map(Number);
+    expect(within(rows[12] as HTMLElement).getByRole('rowheader')).toHaveTextContent(
+      new RegExp(`– ${month}월 ${day}일$`),
+    );
+    expect(screen.getByRole('group', { name: '주간 예약 추이' })).toHaveAttribute('tabindex', '0');
   });
 
   it('고객사를 바꾸면 브랜드와 문서 제목이 전환된다', async () => {

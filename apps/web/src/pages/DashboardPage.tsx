@@ -10,6 +10,7 @@ import { usePageTitle } from '../app/usePageTitle';
 import { QueryErrorState } from '../components/QueryErrorState';
 import type { Appointment, AppointmentStatus } from '../domain/appointment';
 import { AppointmentFormDialog } from '../features/appointments/AppointmentFormDialog';
+import { WeeklyVisitsChart } from '../features/appointments/WeeklyVisitsChart';
 import { appointmentColumns as c } from '../features/appointments/columns';
 import { formatDateLabel, today } from '../utils/date';
 
@@ -56,6 +57,8 @@ export function DashboardPage() {
           </Grid>
         ))}
       </Grid>
+
+      <WeeklyVisitsChart />
 
       {error ? (
         <QueryErrorState error={error} onRetry={() => refetch()} />

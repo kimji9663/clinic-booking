@@ -14,6 +14,9 @@ export default tseslint.config(
       'storybook-static',
       'playwright-report',
       'test-results',
+      // 측정 결과물(bench 용 Storybook 빌드, Lighthouse 리포트)
+      '.bench',
+      '.lighthouseci',
     ],
   },
   js.configs.recommended,

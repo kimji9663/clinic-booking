@@ -37,7 +37,7 @@
 clinic-booking/
 ├─ packages/
 │  ├─ theme/   @clinic/theme — 브랜드 토큰, createBrandTheme, 명도 대비 보정, MUI 타입 확장
-│  └─ ui/      @clinic/ui    — 공통 컴포넌트 (AppShell, DataTable, VirtualDataTable, Tabs, Combobox, FormDialog, ConfirmDialog, Toast ...)
+│  └─ ui/      @clinic/ui    — 공통 컴포넌트 (AppShell, DataTable, VirtualDataTable, Tabs, Combobox, FormDialog, ConfirmDialog, Toast ...) + `@clinic/ui/charts`(D3 차트, 별도 진입점)
 ├─ apps/
 │  └─ web/     @clinic/web   — 병원 예약 관리 앱 (Vite)
 │     ├─ src/app/       라우트(코드 스플리팅), Provider, 레이아웃
@@ -148,6 +148,12 @@ npm run storybook      # http://localhost:6006
   - `scrollMode="window"`: 페이지 전체 스크롤을 따라 가상화(`useWindowVirtualizer`), 표 머리글은 AppShell 상단 바 아래(`--app-header-height`)에 고정 — 환자 페이지에서 사용
   - `scrollMode="container"`(기본): 고정 높이 스크롤 영역, `role="region"` + `tabIndex=0` 으로 키보드(PageDown/End) 스크롤
   - 불러온 건수는 `role="status"` 로 안내
+- `StackedBarChart` (`@clinic/ui/charts`): 대시보드 **주간 예약 추이**(최근 12주, 초진·재진 누적, 취소 제외 — `GET /api/stats/weekly-visits`)
+  - D3 는 계산만(`d3-scale` 축 스케일, `d3-shape` stack), SVG 는 React 가 그림 → DOM 을 둘이 나눠 갖지 않아 리렌더·StrictMode 에서 안전
+  - 색은 팔레트 키(`primary`/`secondary`)로만 받아 CSS 변수로 칠함 → 고객사 대비 보정 색을 그대로 쓰고, 다크 모드 전환 시 다시 렌더링하지 않음
+  - SVG 는 스크린리더에서 숨기고 같은 데이터를 표(`caption`)로 제공, 차트에 포커스 후 ←/→/Home/End 로 막대를 옮기며 값 확인(툴팁 + `role="status"`)
+  - 컨테이너 폭을 `ResizeObserver` 로 따라가 반응형, 좁은 화면에서는 x축 라벨을 건너뛰어 겹치지 않게
+  - D3 는 차트를 쓰는 화면에만 필요해 메인 진입점과 분리 → 모든 페이지가 받는 공유 청크는 그대로(107.9 kB), 대시보드 청크만 +14 kB(gzip)
 - `Tabs` (WAI-ARIA Tabs 패턴): `tablist`/`tab`/`tabpanel`, `aria-selected`·`aria-controls`, **roving tabindex**(탭 묶음은 Tab 한 번, 안에서는 ←/→·Home/End), 자동/수동 선택 모드 — 환자 프로필 진료 이력
 - `Combobox` (WAI-ARIA Combobox · List Autocomplete): 포커스는 입력창에 두고 ↑/↓ 로 고르면 `aria-activedescendant` 갱신, Enter 선택(폼 제출 아님), Esc 는 목록만 닫음(대화상자는 유지), 결과 수는 `aria-live` — 예약 폼 환자 검색(이름·연락처 뒷자리, 결과는 마스킹)
 - 본문 바로가기, 랜드마크, `aria-current`, 표 `caption`, 키보드 포커스 링
@@ -179,5 +185,6 @@ npm run storybook      # http://localhost:6006
 - [x] 환자 150명 대용량 목록: TanStack Virtual 가상화 + 무한 스크롤
 - [x] 환자 프로필 (진료 이력, 메모 낙관적 업데이트, 프로필에서 예약 등록)
 - [x] 실시간 알림 (SSE: 재연결·Last-Event-ID, 토스트·알림 배지)
+- [x] 대시보드 주간 예약 추이 차트 (D3 누적 막대, 키보드·스크린리더 대응)
 - [x] 공수 비교 지표: 신규 고객사 추가 시 변경 파일·라인 수 기록 ([docs/brand-onboarding.md](docs/brand-onboarding.md))
 - [x] GitHub Pages 배포 (앱 + Storybook, CI 통과 후 자동 배포)
